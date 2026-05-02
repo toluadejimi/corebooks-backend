@@ -1,0 +1,14 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Old links using /public/... → same path without /public
+    RewriteCond %{THE_REQUEST} \s/+public/(\S*) [NC]
+    RewriteRule ^public/(.*)$ /$1 [R=301,L]
+
+    # Site root → Laravel front controller
+    RewriteRule ^$ public/index.php [L]
+
+    # All other paths → public/ (no /public segment in the browser URL)
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
