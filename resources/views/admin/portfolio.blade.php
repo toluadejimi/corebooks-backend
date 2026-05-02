@@ -1,0 +1,44 @@
+@extends('layouts.admin-portfolio')
+
+@section('title', 'Your businesses — '.config('app.name'))
+
+@section('content')
+<div class="adm-portfolio-hero">
+    <h1 class="adm-page-title" style="font-size:2rem;">Business portfolio</h1>
+    <p class="adm-page-desc">Connect to a business to manage catalog, stock, and team. Register a new business anytime — you become the owner.</p>
+</div>
+
+<div class="adm-card" style="margin-bottom:2rem;">
+    <h2 class="adm-page-title" style="font-size:1.15rem;">Register a new business</h2>
+    <p class="adm-page-desc" style="margin-bottom:1rem;">Creates a default location (Main) and assigns you as <strong>owner</strong>.</p>
+    <form method="post" action="{{ route('admin.businesses.store') }}" class="adm-inline-form">
+        @csrf
+        <div class="adm-field">
+            <label class="adm-label" for="biz_name">Business name</label>
+            <input class="adm-input" id="biz_name" name="name" type="text" required maxlength="255" placeholder="e.g. Tolu Retail Ltd" value="{{ old('name') }}">
+        </div>
+        <button type="submit" class="adm-btn adm-btn-primary" style="height:42px;">Create business</button>
+    </form>
+</div>
+
+<h2 class="adm-page-title" style="font-size:1.15rem;margin-bottom:1rem;">Your businesses</h2>
+@if ($businesses->isEmpty())
+    <div class="adm-card">
+        <p style="color:var(--adm-muted);margin:0;">You are not linked to any business yet. Create one above.</p>
+    </div>
+@else
+    <div class="adm-portfolio-grid">
+        @foreach ($businesses as $b)
+            @php($role = \App\Enums\BusinessRole::normalize($b->pivot->role))
+            <article class="adm-biz-card">
+                <h3>{{ $b->name }}</h3>
+                <p style="margin:0;color:var(--adm-muted);font-size:0.85rem;">{{ $b->currency }} · VAT {{ $b->default_vat_rate }}%</p>
+                <span class="adm-role-pill" style="display:inline-block;margin-top:0.25rem;">{{ $role->value }}</span>
+                <div class="adm-actions" style="margin-top:auto;padding-top:0.5rem;">
+                    <a href="{{ route('admin.b.overview', $b) }}" class="adm-btn adm-btn-primary">Connect &amp; manage</a>
+                </div>
+            </article>
+        @endforeach
+    </div>
+@endif
+@endsection
