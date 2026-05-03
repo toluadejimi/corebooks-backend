@@ -42,16 +42,24 @@ class GlAccountController extends Controller
         $this->ledger->ensureDefaultChart($business);
 
         $data = $request->validate([
-            'code' => [
-                'required',
-                'string',
-                'max:32',
-                Rule::unique('gl_accounts', 'code')->where('business_id', $business->id),
-            ],
+            'code' => ['nullable', 'string', 'max:32'],
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::in(['asset', 'liability', 'equity', 'revenue', 'expense'])],
             'parent_uuid' => ['nullable', 'uuid'],
         ]);
+
+        $code = trim((string) ($data['code'] ?? ''));
+        if ($code === '') {
+            $code = $this->ledger->allocateNextAccountCode($business, $data['type']);
+        } else {
+            $exists = GlAccount::query()
+                ->where('business_id', $business->id)
+                ->where('code', $code)
+                ->exists();
+            if ($exists) {
+                return response()->json(['message' => 'That account code is already in use.'], 422);
+            }
+        }
 
         $parentId = null;
         if (! empty($data['parent_uuid'])) {
@@ -67,7 +75,7 @@ class GlAccountController extends Controller
         $account = GlAccount::query()->create([
             'business_id' => $business->id,
             'uuid' => (string) Str::uuid(),
-            'code' => trim($data['code']),
+            'code' => $code,
             'name' => trim($data['name']),
             'type' => $data['type'],
             'parent_id' => $parentId,

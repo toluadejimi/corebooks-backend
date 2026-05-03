@@ -66,6 +66,50 @@ final class GeneralLedgerService
         });
     }
 
+    /**
+     * Next unused numeric GL code for the given type (steps by 10). Codes are unique per business across all types.
+     */
+    public function allocateNextAccountCode(Business $business, string $type): string
+    {
+        $this->ensureDefaultChart($business);
+
+        $starter = match ($type) {
+            'asset' => 1030,
+            'liability' => 2040,
+            'equity' => 3010,
+            'revenue' => 4020,
+            'expense' => 5030,
+            default => 9010,
+        };
+
+        $sameTypeMax = GlAccount::query()
+            ->where('business_id', $business->id)
+            ->where('type', $type)
+            ->get()
+            ->map(fn (GlAccount $a) => ctype_digit(trim($a->code)) ? (int) trim($a->code) : null)
+            ->filter()
+            ->max();
+
+        $next = ($sameTypeMax !== null && $sameTypeMax > 0) ? $sameTypeMax + 10 : $starter;
+
+        $globalMax = GlAccount::query()
+            ->where('business_id', $business->id)
+            ->pluck('code')
+            ->map(fn (string $c) => ctype_digit(trim($c)) ? (int) trim($c) : null)
+            ->filter()
+            ->max();
+
+        if ($globalMax !== null && $next <= $globalMax) {
+            $next = $globalMax + 10;
+        }
+
+        while (GlAccount::query()->where('business_id', $business->id)->where('code', (string) $next)->exists()) {
+            $next += 10;
+        }
+
+        return (string) $next;
+    }
+
     public function voidBySource(Business $business, string $sourceType, string $sourceUuid): void
     {
         JournalEntry::query()
