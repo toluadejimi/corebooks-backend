@@ -7,6 +7,7 @@ use App\Models\Product;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Laragear\WebAuthn\WebAuthnServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -15,7 +16,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Register explicitly so `auth.providers.users.driver = eloquent-webauthn` always
+        // has a matching creator, even when Composer package discovery is skipped or
+        // `bootstrap/cache/packages.php` is missing on deploy.
+        if (class_exists(WebAuthnServiceProvider::class)) {
+            $this->app->register(WebAuthnServiceProvider::class);
+        }
     }
 
     /**
