@@ -32,9 +32,13 @@ class AppServiceProvider extends ServiceProvider
         }
 
         Route::bind('product', function (string $value, \Illuminate\Routing\Route $route): Product {
+            // Explicit binds run before implicit model binding, so `business` is often still the UUID string.
             $business = $route->parameter('business');
             if (! $business instanceof Business) {
-                abort(404);
+                if (! is_string($business) || $business === '') {
+                    abort(404);
+                }
+                $business = Business::query()->where('uuid', $business)->firstOrFail();
             }
 
             return Product::query()
