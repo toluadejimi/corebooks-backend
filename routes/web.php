@@ -19,7 +19,10 @@ use App\Http\Controllers\Web\Admin\SubscriptionPlanWebController;
 use App\Http\Controllers\Web\Admin\TeamWebController;
 use App\Http\Controllers\Web\Admin\WorkspaceController;
 use App\Http\Controllers\Web\AdminAuthController;
+use App\Http\Controllers\Web\AdminPasskeySetupController;
 use App\Http\Controllers\Web\PaystackSubscriptionReturnController;
+use App\Http\Controllers\WebAuthn\WebAuthnLoginController;
+use App\Http\Controllers\WebAuthn\WebAuthnRegisterController;
 use App\Http\Middleware\EnsureBusinessMember;
 use Illuminate\Support\Facades\Route;
 
@@ -33,11 +36,26 @@ Route::middleware('guest')->group(function (): void {
     Route::post('/admin/login', [AdminAuthController::class, 'login'])->name('login.store');
 });
 
+Route::post('/admin/webauthn/login/options', [WebAuthnLoginController::class, 'options'])
+    ->middleware('throttle:30,1')
+    ->name('webauthn.login.options');
+Route::post('/admin/webauthn/login', [WebAuthnLoginController::class, 'login'])
+    ->middleware('throttle:15,1')
+    ->name('webauthn.login');
+
 Route::post('/admin/logout', [AdminAuthController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
 
 Route::middleware('auth')->group(function (): void {
+    Route::get('/admin/passkey-setup', [AdminPasskeySetupController::class, 'show'])->name('admin.passkey-setup');
+    Route::post('/admin/webauthn/register/options', [WebAuthnRegisterController::class, 'options'])
+        ->middleware('throttle:20,1')
+        ->name('webauthn.register.options');
+    Route::post('/admin/webauthn/register', [WebAuthnRegisterController::class, 'register'])
+        ->middleware('throttle:20,1')
+        ->name('webauthn.register');
+
     Route::get('/admin', [PortfolioController::class, 'index'])->name('dashboard');
     Route::post('/admin/businesses', [PortfolioController::class, 'store'])->name('admin.businesses.store');
 

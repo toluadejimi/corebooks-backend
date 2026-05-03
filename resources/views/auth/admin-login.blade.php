@@ -85,11 +85,11 @@
                 </div>
             @endif
 
-            <form method="post" action="{{ route('login.store') }}">
+            <form method="post" action="{{ route('login.store') }}" id="admin-login-form">
                 @csrf
                 <div class="field">
                     <label for="email">Email</label>
-                    <input class="input" id="email" name="email" type="email" value="{{ old('email') }}" required autocomplete="username" autofocus>
+                    <input class="input" id="email" name="email" type="email" value="{{ old('email') }}" required autocomplete="username webauthn" autofocus>
                 </div>
                 <div class="field">
                     <label for="password">Password</label>
@@ -102,6 +102,12 @@
                 <button type="submit" class="btn btn-primary" style="width:100%;">Sign in</button>
             </form>
 
+            <div style="margin:1.25rem 0;border-top:1px solid var(--border);padding-top:1.25rem;">
+                <p style="font-size:0.875rem;color:var(--muted);margin-bottom:0.75rem;">Have a passkey on this device? Enter your email above, then:</p>
+                <button type="button" class="btn" id="btn-passkey-login" style="width:100%;border:1px solid var(--border);background:rgba(255,255,255,0.04);">Sign in with passkey (Face ID / Touch ID / Windows Hello)</button>
+                <p style="margin-top:0.75rem;font-size:0.78rem;color:var(--muted);">First time: sign in with password once, open <strong>Passkey</strong> from the admin header, and register this browser.</p>
+            </div>
+
             <p style="margin-top:1.5rem;font-size:0.8125rem;color:var(--muted);text-align:center;">
                 <a href="{{ url('/') }}">← Back to home</a>
             </p>
@@ -109,3 +115,58 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/@laragear/webpass@2/dist/webpass.js" defer></script>
+<script defer>
+document.addEventListener('DOMContentLoaded', function () {
+    try {
+        var saved = localStorage.getItem('admin_login_email');
+        var emailEl = document.getElementById('email');
+        if (saved && emailEl && !emailEl.value) emailEl.value = saved;
+    } catch (e) {}
+    var form = document.getElementById('admin-login-form');
+    if (form) {
+        form.addEventListener('submit', function () {
+            try {
+                var v = document.getElementById('email').value;
+                if (v) localStorage.setItem('admin_login_email', v);
+            } catch (e) {}
+        });
+    }
+    var btn = document.getElementById('btn-passkey-login');
+    if (!btn || !window.Webpass) return;
+    if (Webpass.isUnsupported()) {
+        btn.disabled = true;
+        btn.textContent = 'Passkeys not supported in this browser';
+        return;
+    }
+    var webpass = Webpass.create({ findCsrfToken: true });
+    btn.addEventListener('click', async function () {
+        var email = document.getElementById('email').value.trim();
+        if (!email) {
+            alert('Enter your email first so we can find your passkey.');
+            document.getElementById('email').focus();
+            return;
+        }
+        btn.disabled = true;
+        try {
+            var res = await webpass.assert(
+                { path: '/admin/webauthn/login/options', body: { email: email }, credentials: 'same-origin' },
+                { path: '/admin/webauthn/login', credentials: 'same-origin' }
+            );
+            if (res.success) {
+                try { localStorage.setItem('admin_login_email', email); } catch (e) {}
+                window.location.href = '{{ url('/admin') }}';
+            } else {
+                alert((res.error && res.error.message) ? res.error.message : 'Passkey sign-in failed. Use your password or register a passkey from the admin dashboard after signing in.');
+                btn.disabled = false;
+            }
+        } catch (e) {
+            alert(e.message || 'Passkey sign-in failed.');
+            btn.disabled = false;
+        }
+    });
+});
+</script>
+@endpush

@@ -110,5 +110,6 @@
     <div class="mesh-bg" aria-hidden="true"></div>
     <div class="grid-noise" aria-hidden="true"></div>
     @yield('content')
+    @stack('scripts')
 </body>
 </html>

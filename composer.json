@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.3",
         "dompdf/dompdf": "^3.1",
+        "laragear/webauthn": "^5.0",
         "laravel/framework": "^13.0",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",
