@@ -14,11 +14,23 @@
     <div class="adm-card" style="margin-bottom:2rem;border-left:4px solid var(--adm-accent, #6366f1);">
         <h2 class="adm-page-title" style="font-size:1.1rem;">Platform administration</h2>
         <p class="adm-page-desc" style="margin-bottom:0.75rem;">Configure subscription plans, partner banks, and review loan applications.</p>
-        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;">
             <a href="{{ route('admin.platform.plans.index') }}" class="adm-btn adm-btn-primary">Subscription plans</a>
             <a href="{{ route('admin.platform.loan-banks.index') }}" class="adm-btn adm-btn-ghost">Partner banks</a>
             <a href="{{ route('admin.platform.loans.index') }}" class="adm-btn adm-btn-ghost">Loan applications</a>
+            @if (config('salesapp.allow_web_migrations', true))
+                <form method="post" action="{{ route('admin.platform.migrations.run') }}" style="display:inline;margin:0;" onsubmit="return confirm('Run pending database migrations? This is for servers without SSH. Continue?');">
+                    @csrf
+                    <button type="submit" class="adm-btn adm-btn-ghost" style="border:1px dashed var(--adm-border);">Run migrations</button>
+                </form>
+            @endif
         </div>
+        @if (session('migration_log'))
+            <details style="margin-top:1rem;" open>
+                <summary style="cursor:pointer;color:var(--adm-muted);font-size:0.9rem;">Migration output</summary>
+                <pre style="margin:0.75rem 0 0;padding:1rem;background:var(--adm-bg);border:1px solid var(--adm-border);border-radius:var(--radius, 14px);font-size:0.78rem;overflow:auto;max-height:22rem;white-space:pre-wrap;">{{ session('migration_log') }}</pre>
+            </details>
+        @endif
     </div>
 @endif
 

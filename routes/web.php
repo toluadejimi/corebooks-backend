@@ -6,6 +6,7 @@ use App\Http\Controllers\Web\Admin\LoanApplicationPlatformWebController;
 use App\Http\Controllers\Web\Admin\LoanPartnerBankWebController;
 use App\Http\Controllers\Web\Admin\LoanWorkspaceWebController;
 use App\Http\Controllers\Web\Admin\PayrollWebController;
+use App\Http\Controllers\Web\Admin\PlatformMaintenanceWebController;
 use App\Http\Controllers\Web\Admin\PortfolioController;
 use App\Http\Controllers\Web\Admin\ProductWebController;
 use App\Http\Controllers\Web\Admin\PurchaseWebController;
@@ -38,6 +39,10 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/admin/businesses', [PortfolioController::class, 'store'])->name('admin.businesses.store');
 
     Route::middleware('platform.admin')->prefix('admin/platform')->name('admin.platform.')->group(function (): void {
+        Route::post('run-migrations', [PlatformMaintenanceWebController::class, 'runMigrations'])
+            ->middleware('throttle:8,1')
+            ->name('migrations.run');
+
         Route::get('subscription-plans', [SubscriptionPlanWebController::class, 'index'])->name('plans.index');
         Route::get('subscription-plans/create', [SubscriptionPlanWebController::class, 'create'])->name('plans.create');
         Route::post('subscription-plans', [SubscriptionPlanWebController::class, 'store'])->name('plans.store');

@@ -12,6 +12,12 @@ return [
     ))),
 
     /*
+    | When true, platform admins may run `php artisan migrate --force` from the portfolio
+    | dashboard (for hosts without SSH). Set SALESAPP_ALLOW_WEB_MIGRATIONS=false to disable.
+    */
+    'allow_web_migrations' => filter_var(env('SALESAPP_ALLOW_WEB_MIGRATIONS', true), FILTER_VALIDATE_BOOLEAN),
+
+    /*
     | Shown in the mobile app when Paystack is not configured (offline / manual payment).
     */
     'offline_payment_instructions' => (string) env(
