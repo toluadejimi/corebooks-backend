@@ -162,7 +162,8 @@ class ProductController extends Controller
 
     private function assertProduct(Business $business, Product $product): void
     {
-        abort_if($product->business_id !== $business->id, 404);
+        // Compare as integers: PDO often returns business_id as string; strict !== would wrongly 404.
+        abort_if((int) $product->business_id !== (int) $business->id, 404);
     }
 
     private function resolveCategoryId(Business $business, ?string $categoryUuid): ?int

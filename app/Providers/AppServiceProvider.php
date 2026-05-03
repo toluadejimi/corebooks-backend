@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\Business;
+use App\Models\Product;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -27,5 +30,17 @@ class AppServiceProvider extends ServiceProvider
         if ($forceHttps) {
             URL::forceScheme('https');
         }
+
+        Route::bind('product', function (string $value, \Illuminate\Routing\Route $route): Product {
+            $business = $route->parameter('business');
+            if (! $business instanceof Business) {
+                abort(404);
+            }
+
+            return Product::query()
+                ->where('business_id', $business->getKey())
+                ->where('uuid', $value)
+                ->firstOrFail();
+        });
     }
 }
