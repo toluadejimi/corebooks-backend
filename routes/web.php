@@ -5,6 +5,7 @@ use App\Http\Controllers\Web\Admin\BusinessSubscriptionPlatformWebController;
 use App\Http\Controllers\Web\Admin\CategoryWebController;
 use App\Http\Controllers\Web\Admin\ExtraServiceApplicationPlatformWebController;
 use App\Http\Controllers\Web\Admin\ExtraServiceWebController;
+use App\Http\Controllers\Web\Admin\GeneralLedgerWebController;
 use App\Http\Controllers\Web\Admin\LoanApplicationPlatformWebController;
 use App\Http\Controllers\Web\Admin\LoanPartnerBankWebController;
 use App\Http\Controllers\Web\Admin\LoanWorkspaceWebController;
@@ -108,6 +109,7 @@ Route::middleware('auth')->group(function (): void {
                 ->where(['report' => 'daily|trends|pnl|products|payments|expenses|firs|ledger', 'format' => 'pdf|xlsx'])
                 ->name('reports.export');
             Route::get('/reports', [ReportsWebController::class, 'index'])->name('reports.index');
+            Route::get('/general-ledger', [GeneralLedgerWebController::class, 'index'])->name('ledger.index');
 
             Route::get('/settings', [BusinessSettingsWebController::class, 'edit'])->name('settings.edit');
             Route::middleware('business.role:manager')->group(function (): void {

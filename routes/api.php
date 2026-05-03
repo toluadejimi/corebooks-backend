@@ -86,6 +86,9 @@ Route::prefix('v1')->group(function (): void {
                     Route::get('reports/sales-ledger', [ReportController::class, 'salesLedger']);
 
                     Route::get('gl-accounts', [GlAccountController::class, 'index']);
+                    Route::middleware('business.role:owner')->group(function (): void {
+                        Route::post('gl-accounts', [GlAccountController::class, 'store']);
+                    });
                     Route::get('journal-entries', [JournalEntryController::class, 'index']);
                     Route::get('gl-trial-balance', [GlReportController::class, 'trialBalance']);
 
