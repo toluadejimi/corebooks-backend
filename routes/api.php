@@ -4,6 +4,8 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BusinessController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\ExpenseApiController;
+use App\Http\Controllers\Api\V1\ExtraServiceApplicationController;
+use App\Http\Controllers\Api\V1\ExtraServiceController;
 use App\Http\Controllers\Api\V1\LoanApplicationController;
 use App\Http\Controllers\Api\V1\LoanPartnerBankController;
 use App\Http\Controllers\Api\V1\LocationController;
@@ -36,6 +38,8 @@ Route::prefix('v1')->group(function (): void {
         Route::get('auth/me', [AuthController::class, 'me']);
         Route::post('auth/logout', [AuthController::class, 'logout']);
 
+        Route::get('extra-services', [ExtraServiceController::class, 'index']);
+
         Route::get('businesses', [BusinessController::class, 'index']);
         Route::post('businesses', [BusinessController::class, 'store']);
 
@@ -47,6 +51,11 @@ Route::prefix('v1')->group(function (): void {
 
                 Route::middleware('business.role:manager')->group(function (): void {
                     Route::post('subscription/initialize', [SubscriptionController::class, 'initializePayment']);
+                });
+
+                Route::middleware('business.role:manager')->group(function (): void {
+                    Route::get('extra-service-applications', [ExtraServiceApplicationController::class, 'index']);
+                    Route::post('extra-service-applications', [ExtraServiceApplicationController::class, 'store']);
                 });
 
                 Route::middleware('business.subscription')->group(function (): void {

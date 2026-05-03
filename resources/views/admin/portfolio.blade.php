@@ -13,11 +13,14 @@
 @if ($isPlatformAdmin)
     <div class="adm-card" style="margin-bottom:2rem;border-left:4px solid var(--adm-accent, #6366f1);">
         <h2 class="adm-page-title" style="font-size:1.1rem;">Platform administration</h2>
-        <p class="adm-page-desc" style="margin-bottom:0.75rem;">Configure subscription plans, partner banks, and review loan applications.</p>
+        <p class="adm-page-desc" style="margin-bottom:0.75rem;">Configure subscription plans, partner banks, more services, and review applications.</p>
         <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;">
             <a href="{{ route('admin.platform.plans.index') }}" class="adm-btn adm-btn-primary">Subscription plans</a>
+            <a href="{{ route('admin.platform.business-subscriptions.index') }}" class="adm-btn adm-btn-ghost">Business subscriptions</a>
             <a href="{{ route('admin.platform.loan-banks.index') }}" class="adm-btn adm-btn-ghost">Partner banks</a>
             <a href="{{ route('admin.platform.loans.index') }}" class="adm-btn adm-btn-ghost">Loan applications</a>
+            <a href="{{ route('admin.platform.extra-services.index') }}" class="adm-btn adm-btn-ghost">More services</a>
+            <a href="{{ route('admin.platform.extra-service-applications.index') }}" class="adm-btn adm-btn-ghost">Service applications</a>
             @if (config('salesapp.allow_web_migrations', true))
                 <form method="post" action="{{ route('admin.platform.migrations.run') }}" style="display:inline;margin:0;" onsubmit="return confirm('Run pending database migrations? This is for servers without SSH. Continue?');">
                     @csrf

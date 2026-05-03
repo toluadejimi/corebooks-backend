@@ -1,7 +1,10 @@
 <?php
 
 use App\Http\Controllers\Web\Admin\BusinessSettingsWebController;
+use App\Http\Controllers\Web\Admin\BusinessSubscriptionPlatformWebController;
 use App\Http\Controllers\Web\Admin\CategoryWebController;
+use App\Http\Controllers\Web\Admin\ExtraServiceApplicationPlatformWebController;
+use App\Http\Controllers\Web\Admin\ExtraServiceWebController;
 use App\Http\Controllers\Web\Admin\LoanApplicationPlatformWebController;
 use App\Http\Controllers\Web\Admin\LoanPartnerBankWebController;
 use App\Http\Controllers\Web\Admin\LoanWorkspaceWebController;
@@ -43,6 +46,10 @@ Route::middleware('auth')->group(function (): void {
             ->middleware('throttle:8,1')
             ->name('migrations.run');
 
+        Route::get('business-subscriptions', [BusinessSubscriptionPlatformWebController::class, 'index'])->name('business-subscriptions.index');
+        Route::get('business-subscriptions/{business}/edit', [BusinessSubscriptionPlatformWebController::class, 'edit'])->name('business-subscriptions.edit');
+        Route::put('business-subscriptions/{business}', [BusinessSubscriptionPlatformWebController::class, 'update'])->name('business-subscriptions.update');
+
         Route::get('subscription-plans', [SubscriptionPlanWebController::class, 'index'])->name('plans.index');
         Route::get('subscription-plans/create', [SubscriptionPlanWebController::class, 'create'])->name('plans.create');
         Route::post('subscription-plans', [SubscriptionPlanWebController::class, 'store'])->name('plans.store');
@@ -60,6 +67,17 @@ Route::middleware('auth')->group(function (): void {
         Route::get('loan-partner-banks/{loanPartnerBank}/edit', [LoanPartnerBankWebController::class, 'edit'])->name('loan-banks.edit');
         Route::put('loan-partner-banks/{loanPartnerBank}', [LoanPartnerBankWebController::class, 'update'])->name('loan-banks.update');
         Route::delete('loan-partner-banks/{loanPartnerBank}', [LoanPartnerBankWebController::class, 'destroy'])->name('loan-banks.destroy');
+
+        Route::get('extra-services', [ExtraServiceWebController::class, 'index'])->name('extra-services.index');
+        Route::get('extra-services/create', [ExtraServiceWebController::class, 'create'])->name('extra-services.create');
+        Route::post('extra-services', [ExtraServiceWebController::class, 'store'])->name('extra-services.store');
+        Route::get('extra-services/{extraService}/edit', [ExtraServiceWebController::class, 'edit'])->name('extra-services.edit');
+        Route::put('extra-services/{extraService}', [ExtraServiceWebController::class, 'update'])->name('extra-services.update');
+        Route::delete('extra-services/{extraService}', [ExtraServiceWebController::class, 'destroy'])->name('extra-services.destroy');
+
+        Route::get('extra-service-applications', [ExtraServiceApplicationPlatformWebController::class, 'index'])->name('extra-service-applications.index');
+        Route::get('extra-service-applications/{extraServiceApplication}', [ExtraServiceApplicationPlatformWebController::class, 'show'])->name('extra-service-applications.show');
+        Route::put('extra-service-applications/{extraServiceApplication}', [ExtraServiceApplicationPlatformWebController::class, 'update'])->name('extra-service-applications.update');
     });
 
     Route::prefix('admin/b/{business:uuid}')

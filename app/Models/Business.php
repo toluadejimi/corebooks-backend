@@ -81,4 +81,9 @@ class Business extends Model
     {
         return $this->hasMany(BusinessLoanApplication::class);
     }
+
+    public function extraServiceApplications(): HasMany
+    {
+        return $this->hasMany(ExtraServiceApplication::class);
+    }
 }
