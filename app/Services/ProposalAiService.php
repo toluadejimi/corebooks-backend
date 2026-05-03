@@ -16,7 +16,7 @@ class ProposalAiService
     {
         $key = config('openai.api_key');
         if (! is_string($key) || $key === '') {
-            throw new RuntimeException('OpenAI is not configured. Set OPENAI_API_KEY in the server environment.');
+            throw new RuntimeException('The proposal assistant is not available right now. Try again later.');
         }
 
         $model = (string) config('openai.model', 'gpt-4o-mini');
