@@ -6,6 +6,7 @@
 <div class="adm-card" style="max-width:640px;margin-bottom:1rem;">
     <h1 class="adm-page-title" style="font-size:1.25rem;">Subscription: {{ $business->name }}</h1>
     <p class="adm-page-desc"><code>{{ $business->uuid }}</code></p>
+    <p style="margin:0.5rem 0 0;font-size:0.9rem;color:var(--adm-muted);">Token balance: <strong>{{ (int) ($business->token_balance ?? 0) }}</strong> · Prices: <a href="{{ route('admin.platform.token-settings.edit') }}">Token pricing</a></p>
 </div>
 
 <div class="adm-card" style="max-width:640px;">
@@ -39,6 +40,11 @@
             <label class="adm-label" for="subscription_current_period_end">Billing period ends (optional)</label>
             <input class="adm-input" type="datetime-local" id="subscription_current_period_end" name="subscription_current_period_end" value="{{ old('subscription_current_period_end', $business->subscription_current_period_end?->timezone(config('app.timezone'))->format('Y-m-d\TH:i')) }}">
             <p style="margin:0.35rem 0 0;font-size:0.82rem;color:var(--adm-muted);">Only used when <strong>Active</strong>. Empty = no automatic expiry.</p>
+        </div>
+        <div class="adm-field">
+            <label class="adm-label" for="token_credit_adjust">Adjust token credits</label>
+            <input class="adm-input" type="number" step="1" id="token_credit_adjust" name="token_credit_adjust" value="{{ old('token_credit_adjust') }}" placeholder="e.g. 500 to add, or -100 to remove">
+            <p style="margin:0.35rem 0 0;font-size:0.82rem;color:var(--adm-muted);">Positive adds tokens; negative removes (cannot go below zero).</p>
         </div>
         <div style="margin-top:1rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
             <button type="submit" class="adm-btn adm-btn-primary">Save</button>

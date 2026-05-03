@@ -17,6 +17,7 @@ use App\Http\Controllers\Web\Admin\PurchaseWebController;
 use App\Http\Controllers\Web\Admin\ReportsWebController;
 use App\Http\Controllers\Web\Admin\StockWebController;
 use App\Http\Controllers\Web\Admin\SubscriptionPlanWebController;
+use App\Http\Controllers\Web\Admin\TokenSettingsWebController;
 use App\Http\Controllers\Web\Admin\TeamWebController;
 use App\Http\Controllers\Web\Admin\WorkspaceController;
 use App\Http\Controllers\Web\AdminAuthController;
@@ -106,6 +107,9 @@ Route::middleware('auth')->group(function (): void {
         Route::get('extra-service-applications', [ExtraServiceApplicationPlatformWebController::class, 'index'])->name('extra-service-applications.index');
         Route::get('extra-service-applications/{extraServiceApplication}', [ExtraServiceApplicationPlatformWebController::class, 'show'])->name('extra-service-applications.show');
         Route::put('extra-service-applications/{extraServiceApplication}', [ExtraServiceApplicationPlatformWebController::class, 'update'])->name('extra-service-applications.update');
+
+        Route::get('token-settings', [TokenSettingsWebController::class, 'edit'])->name('token-settings.edit');
+        Route::put('token-settings', [TokenSettingsWebController::class, 'update'])->name('token-settings.update');
     });
 
     Route::prefix('admin/b/{business:uuid}')

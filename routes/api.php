@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BusinessController;
+use App\Http\Controllers\Api\V1\BusinessTokenController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\ExpenseApiController;
 use App\Http\Controllers\Api\V1\BankAccountController;
@@ -129,6 +130,8 @@ Route::prefix('v1')->group(function (): void {
                         Route::delete('quotations/{quotation}', [QuotationController::class, 'destroy']);
                         Route::get('quotations/{quotation}/pdf', [QuotationController::class, 'pdf']);
                         Route::post('quotations/{quotation}/email', [QuotationController::class, 'email']);
+
+                        Route::post('tokens/consume', [BusinessTokenController::class, 'consume']);
 
                         Route::post('proposals/ai-draft', [ProposalController::class, 'generateAi']);
                         Route::get('proposals', [ProposalController::class, 'index']);

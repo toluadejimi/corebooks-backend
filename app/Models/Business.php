@@ -40,6 +40,7 @@ class Business extends Model
             'subscription_trial_ends_at' => 'datetime',
             'subscription_current_period_end' => 'datetime',
             'public_shop_enabled' => 'boolean',
+            'token_balance' => 'integer',
         ];
     }
 
@@ -113,5 +114,10 @@ class Business extends Model
     public function proposals(): HasMany
     {
         return $this->hasMany(Proposal::class);
+    }
+
+    public function tokenTransactions(): HasMany
+    {
+        return $this->hasMany(TokenTransaction::class);
     }
 }

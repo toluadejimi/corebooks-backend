@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\SubscriptionPlan;
+use App\Services\BusinessTokenService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -12,6 +13,9 @@ use Illuminate\View\View;
 
 class BusinessSubscriptionPlatformWebController extends Controller
 {
+    public function __construct(
+        private readonly BusinessTokenService $tokens,
+    ) {}
     public function index(Request $request): View
     {
         $businesses = Business::query()
@@ -59,6 +63,7 @@ class BusinessSubscriptionPlatformWebController extends Controller
             'subscription_status' => ['required', 'string', 'in:inactive,active,trialing'],
             'subscription_trial_ends_at' => ['nullable', 'date'],
             'subscription_current_period_end' => ['nullable', 'date'],
+            'token_credit_adjust' => ['nullable', 'integer', 'between:-1000000,1000000'],
         ]);
 
         if ($data['subscription_status'] === 'trialing') {
@@ -100,6 +105,20 @@ class BusinessSubscriptionPlatformWebController extends Controller
             'subscription_trial_ends_at' => $data['subscription_status'] === 'trialing' ? $trialAt : null,
             'subscription_current_period_end' => $data['subscription_status'] === 'active' ? $periodEnd : null,
         ]);
+
+        $adjust = (int) ($data['token_credit_adjust'] ?? 0);
+        if ($adjust !== 0) {
+            if ($adjust > 0) {
+                $this->tokens->credit($business, $request->user(), 'admin_adjust', $adjust, ['note' => 'subscription screen']);
+            } else {
+                $amount = abs($adjust);
+                $business->refresh();
+                if ((int) $business->token_balance < $amount) {
+                    return back()->withErrors(['token_credit_adjust' => 'Cannot remove more tokens than this business has.'])->withInput();
+                }
+                $this->tokens->debit($business, $request->user(), 'admin_deduct', $amount, ['note' => 'subscription screen deduction']);
+            }
+        }
 
         return redirect()->route('admin.platform.business-subscriptions.index')->with('status', 'Subscription updated for '.$business->name.'.');
     }

@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Mail\SendProposalPdf;
 use App\Models\Business;
+use App\Models\PlatformSetting;
 use App\Models\Proposal;
+use App\Services\BusinessTokenService;
 use App\Services\PdfRenderer;
 use App\Services\ProposalAiService;
 use Illuminate\Http\JsonResponse;
@@ -19,6 +21,7 @@ class ProposalController extends Controller
 {
     public function __construct(
         private readonly PdfRenderer $pdf,
+        private readonly BusinessTokenService $tokens,
     ) {}
 
     public function index(Request $request, Business $business): JsonResponse
@@ -39,13 +42,49 @@ class ProposalController extends Controller
             'prompt' => ['required', 'string', 'min:10', 'max:8000'],
         ]);
 
+        $cost = PlatformSetting::getInt('token_proposal_ai_cost', 10);
+        $business->refresh();
+        if ($cost > 0 && (int) $business->token_balance < $cost) {
+            return response()->json([
+                'message' => 'Insufficient token balance.',
+                'balance' => (int) $business->token_balance,
+                'required' => $cost,
+            ], 402);
+        }
+
         try {
             $out = $ai->generateDraft($business, $data['prompt']);
-
-            return response()->json(['data' => $out]);
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 503);
         }
+
+        if ($cost > 0) {
+            try {
+                $this->tokens->debit($business, $request->user(), 'proposal_ai', $cost, [
+                    'prompt_chars' => strlen($data['prompt']),
+                ]);
+            } catch (RuntimeException $e) {
+                if ($e->getMessage() === 'INSUFFICIENT_TOKENS') {
+                    $business->refresh();
+
+                    return response()->json([
+                        'message' => 'Insufficient token balance.',
+                        'balance' => (int) $business->token_balance,
+                        'required' => $cost,
+                    ], 402);
+                }
+
+                throw $e;
+            }
+        }
+
+        $business->refresh();
+
+        return response()->json([
+            'data' => $out,
+            'token_balance' => (int) $business->token_balance,
+            'tokens_charged' => $cost,
+        ]);
     }
 
     public function store(Request $request, Business $business): JsonResponse

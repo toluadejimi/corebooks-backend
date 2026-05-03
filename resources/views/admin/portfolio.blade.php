@@ -21,6 +21,7 @@
             <a href="{{ route('admin.platform.loans.index') }}" class="adm-btn adm-btn-ghost">Loan applications</a>
             <a href="{{ route('admin.platform.extra-services.index') }}" class="adm-btn adm-btn-ghost">More services</a>
             <a href="{{ route('admin.platform.extra-service-applications.index') }}" class="adm-btn adm-btn-ghost">Service applications</a>
+            <a href="{{ route('admin.platform.token-settings.edit') }}" class="adm-btn adm-btn-ghost">Token pricing</a>
             @if (config('salesapp.allow_web_migrations', true))
                 <form method="post" action="{{ route('admin.platform.migrations.run') }}" style="display:inline;margin:0;" onsubmit="return confirm('Run pending database migrations? This is for servers without SSH. Continue?');">
                     @csrf

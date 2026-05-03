@@ -6,6 +6,7 @@ use App\Enums\BusinessRole;
 use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\Location;
+use App\Models\PlatformSetting;
 use App\Services\BusinessCreator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -138,6 +139,11 @@ class BusinessController extends Controller
             'public_shop_short_url' => ($business->public_shop_enabled && filled($business->public_shop_slug))
                 ? url('/s/'.$business->public_shop_slug)
                 : null,
+            'token_balance' => (int) ($business->token_balance ?? 0),
+            'token_costs' => [
+                'proposal_ai' => PlatformSetting::getInt('token_proposal_ai_cost', 10),
+                'app_search' => PlatformSetting::getInt('token_app_search_cost', 1),
+            ],
             'my_role' => $pivot ? BusinessRole::normalize($pivot->role)->value : null,
             'locations' => $business->locations->map(fn (Location $l) => [
                 'uuid' => $l->uuid,
