@@ -14,6 +14,9 @@ class Product extends Model
         'uuid',
         'name',
         'image_url',
+        'available_online',
+        'gallery_urls',
+        'variations',
         'sku',
         'barcode',
         'cost_price',
@@ -31,6 +34,9 @@ class Product extends Model
             'selling_price' => 'decimal:2',
             'track_batches' => 'boolean',
             'vat_rate' => 'decimal:2',
+            'available_online' => 'boolean',
+            'gallery_urls' => 'array',
+            'variations' => 'array',
         ];
     }
 

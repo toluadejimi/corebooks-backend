@@ -22,12 +22,21 @@ use App\Http\Controllers\Web\Admin\WorkspaceController;
 use App\Http\Controllers\Web\AdminAuthController;
 use App\Http\Controllers\Web\AdminPasskeySetupController;
 use App\Http\Controllers\Web\PaystackSubscriptionReturnController;
+use App\Http\Controllers\Web\PublicShopController;
 use App\Http\Controllers\WebAuthn\WebAuthnLoginController;
 use App\Http\Controllers\WebAuthn\WebAuthnRegisterController;
 use App\Http\Middleware\EnsureBusinessMember;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'landing');
+
+Route::get('/s/{slug}', [PublicShopController::class, 'resolveBySlug'])
+    ->where('slug', '[a-z0-9-]+')
+    ->name('public.shop.slug');
+Route::get('/shop/{business:uuid}', [PublicShopController::class, 'index'])->name('public.shop');
+Route::get('/shop/{business:uuid}/p/{product:uuid}', [PublicShopController::class, 'product'])->name('public.shop.product');
+Route::post('/shop/{business:uuid}/checkout', [PublicShopController::class, 'checkout'])->name('public.shop.checkout');
+Route::get('/shop/{business:uuid}/thanks', [PublicShopController::class, 'thanks'])->name('public.shop.thanks');
 
 Route::get('/paystack/subscription-return', [PaystackSubscriptionReturnController::class, 'show'])
     ->name('paystack.subscription-return');

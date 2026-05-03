@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Business;
+use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,6 +39,9 @@ class SyncController extends Controller
                             'version' => (int) $product->version,
                             'name' => $product->name,
                             'image_url' => $product->image_url,
+                            'available_online' => (bool) $product->available_online,
+                            'gallery_urls' => $product->gallery_urls ?? [],
+                            'variations' => $product->variations ?? [],
                             'selling_price' => (float) $product->selling_price,
                             'updated_at' => $product->updated_at?->toIso8601String(),
                         ],
@@ -46,23 +50,60 @@ class SyncController extends Controller
                     continue;
                 }
 
+                $payload = $op['payload'];
+                $gallery = $payload['gallery_urls'] ?? null;
+                $imageUrl = $payload['image_url'] ?? null;
+                if (is_array($gallery) && count($gallery) > 0) {
+                    if ($imageUrl === null || $imageUrl === '') {
+                        $imageUrl = $gallery[0];
+                    }
+                }
+
+                $categoryId = false;
+                if (array_key_exists('category_uuid', $payload)) {
+                    $cu = $payload['category_uuid'];
+                    if ($cu === null || $cu === '') {
+                        $categoryId = null;
+                    } else {
+                        $resolved = Category::query()
+                            ->where('business_id', $business->id)
+                            ->where('uuid', $cu)
+                            ->value('id');
+                        if ($resolved !== null) {
+                            $categoryId = (int) $resolved;
+                        } elseif ($product === null) {
+                            $categoryId = null;
+                        }
+                    }
+                }
+
+                $attrs = [
+                    'name' => $payload['name'] ?? 'Product',
+                    'image_url' => $imageUrl,
+                    'available_online' => (bool) ($payload['available_online'] ?? false),
+                    'gallery_urls' => is_array($gallery) ? array_values($gallery) : null,
+                    'variations' => isset($payload['variations']) && is_array($payload['variations'])
+                        ? array_values($payload['variations'])
+                        : null,
+                    'sku' => $payload['sku'] ?? null,
+                    'barcode' => $payload['barcode'] ?? null,
+                    'cost_price' => $payload['cost_price'] ?? 0,
+                    'selling_price' => $payload['selling_price'] ?? 0,
+                    'low_stock_threshold' => $payload['low_stock_threshold'] ?? 0,
+                    'track_batches' => $payload['track_batches'] ?? false,
+                    'vat_rate' => $payload['vat_rate'] ?? $business->default_vat_rate,
+                    'version' => ($product?->version ?? 0) + 1,
+                ];
+                if ($categoryId !== false) {
+                    $attrs['category_id'] = $categoryId;
+                }
+
                 Product::query()->updateOrCreate(
                     [
                         'business_id' => $business->id,
-                        'uuid' => $op['payload']['uuid'] ?? $op['uuid'],
+                        'uuid' => $payload['uuid'] ?? $op['uuid'],
                     ],
-                    [
-                        'name' => $op['payload']['name'] ?? 'Product',
-                        'image_url' => $op['payload']['image_url'] ?? null,
-                        'sku' => $op['payload']['sku'] ?? null,
-                        'barcode' => $op['payload']['barcode'] ?? null,
-                        'cost_price' => $op['payload']['cost_price'] ?? 0,
-                        'selling_price' => $op['payload']['selling_price'] ?? 0,
-                        'low_stock_threshold' => $op['payload']['low_stock_threshold'] ?? 0,
-                        'track_batches' => $op['payload']['track_batches'] ?? false,
-                        'vat_rate' => $op['payload']['vat_rate'] ?? $business->default_vat_rate,
-                        'version' => ($product?->version ?? 0) + 1,
-                    ],
+                    $attrs,
                 );
 
                 $synced[] = $op['uuid'];
@@ -110,6 +151,9 @@ class SyncController extends Controller
                     'uuid' => $p->uuid,
                     'name' => $p->name,
                     'image_url' => $p->image_url,
+                    'available_online' => (bool) $p->available_online,
+                    'gallery_urls' => $p->gallery_urls ?? [],
+                    'variations' => $p->variations ?? [],
                     'sku' => $p->sku,
                     'barcode' => $p->barcode,
                     'category_uuid' => $p->category?->uuid,

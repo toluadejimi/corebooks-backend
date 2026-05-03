@@ -23,6 +23,8 @@ class Business extends Model
         'default_vat_rate',
         'tax_id',
         'settings',
+        'public_shop_enabled',
+        'public_shop_slug',
         'version',
         'subscription_plan_id',
         'subscription_status',
@@ -37,6 +39,7 @@ class Business extends Model
             'default_vat_rate' => 'decimal:2',
             'subscription_trial_ends_at' => 'datetime',
             'subscription_current_period_end' => 'datetime',
+            'public_shop_enabled' => 'boolean',
         ];
     }
 

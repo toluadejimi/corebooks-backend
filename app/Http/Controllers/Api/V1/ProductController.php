@@ -43,6 +43,8 @@ class ProductController extends Controller
             });
         }
 
+        $query->with(['category:id,uuid,name', 'business:id,uuid']);
+
         $products = $query->orderBy('name')->paginate($perPage);
 
         $products->setCollection(
@@ -64,6 +66,13 @@ class ProductController extends Controller
             'track_batches' => ['boolean'],
             'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'image_url' => ['nullable', 'string', 'max:2048'],
+            'available_online' => ['sometimes', 'boolean'],
+            'gallery_urls' => ['nullable', 'array', 'max:12'],
+            'gallery_urls.*' => ['string', 'max:2048'],
+            'variations' => ['nullable', 'array', 'max:12'],
+            'variations.*.name' => ['required_with:variations', 'string', 'max:64'],
+            'variations.*.options' => ['required_with:variations', 'array', 'max:64'],
+            'variations.*.options.*' => ['string', 'max:128'],
             'initial_qty' => ['nullable', 'numeric', 'min:0'],
             'location_uuid' => ['nullable', 'uuid'],
             'expiry_date' => ['nullable', 'date'],
@@ -79,12 +88,23 @@ class ProductController extends Controller
 
         $categoryId = $this->resolveCategoryId($business, $data['category_uuid'] ?? null);
 
+        $gallery = $data['gallery_urls'] ?? null;
+        $imageUrl = $data['image_url'] ?? null;
+        if (is_array($gallery) && count($gallery) > 0) {
+            if ($imageUrl === null || $imageUrl === '') {
+                $imageUrl = $gallery[0];
+            }
+        }
+
         $product = Product::query()->create([
             'business_id' => $business->id,
             'uuid' => (string) Str::uuid(),
             'category_id' => $categoryId,
             'name' => $data['name'],
-            'image_url' => $data['image_url'] ?? null,
+            'image_url' => $imageUrl,
+            'available_online' => (bool) ($data['available_online'] ?? false),
+            'gallery_urls' => is_array($gallery) ? array_values($gallery) : null,
+            'variations' => isset($data['variations']) && is_array($data['variations']) ? array_values($data['variations']) : null,
             'sku' => $data['sku'] ?? null,
             'barcode' => $data['barcode'] ?? null,
             'cost_price' => $data['cost_price'] ?? 0,
@@ -131,6 +151,13 @@ class ProductController extends Controller
             'track_batches' => ['sometimes', 'boolean'],
             'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'image_url' => ['nullable', 'string', 'max:2048'],
+            'available_online' => ['sometimes', 'boolean'],
+            'gallery_urls' => ['nullable', 'array', 'max:12'],
+            'gallery_urls.*' => ['string', 'max:2048'],
+            'variations' => ['nullable', 'array', 'max:12'],
+            'variations.*.name' => ['required_with:variations', 'string', 'max:64'],
+            'variations.*.options' => ['required_with:variations', 'array', 'max:64'],
+            'variations.*.options.*' => ['string', 'max:128'],
             'client_version' => ['sometimes', 'integer', 'min:1'],
             'category_uuid' => ['sometimes', 'nullable', 'uuid'],
         ]);
@@ -142,7 +169,18 @@ class ProductController extends Controller
             ], 409);
         }
 
-        $product->fill(collect($data)->except(['client_version', 'category_uuid'])->toArray());
+        $fill = collect($data)->except(['client_version', 'category_uuid'])->toArray();
+        if (array_key_exists('gallery_urls', $data) && is_array($data['gallery_urls'])) {
+            $fill['gallery_urls'] = array_values($data['gallery_urls']);
+            $first = $fill['gallery_urls'][0] ?? null;
+            if (($fill['image_url'] ?? null) === null && is_string($first) && $first !== '') {
+                $fill['image_url'] = $first;
+            }
+        }
+        if (array_key_exists('variations', $data) && is_array($data['variations'])) {
+            $fill['variations'] = array_values($data['variations']);
+        }
+        $product->fill($fill);
         if (array_key_exists('category_uuid', $data)) {
             $product->category_id = $this->resolveCategoryId($business, $data['category_uuid']);
         }
@@ -184,13 +222,22 @@ class ProductController extends Controller
 
     private function productResponse(Product $product): array
     {
-        $product->load(['category:id,uuid,name']);
+        $product->load(['category:id,uuid,name', 'business:id,uuid']);
         $product->loadSum('batches', 'qty');
+
+        $bizUuid = $product->business?->uuid;
+        $onlineUrl = ($product->available_online && $bizUuid)
+            ? url('/shop/'.$bizUuid.'/p/'.$product->uuid)
+            : null;
 
         return [
             'uuid' => $product->uuid,
             'name' => $product->name,
             'image_url' => $product->image_url,
+            'available_online' => (bool) $product->available_online,
+            'gallery_urls' => $product->gallery_urls ?? [],
+            'variations' => $product->variations ?? [],
+            'online_product_url' => $onlineUrl,
             'category_uuid' => $product->category?->uuid,
             'category_name' => $product->category?->name,
             'sku' => $product->sku,

@@ -10,6 +10,7 @@ use App\Services\BusinessCreator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Validation\Rule;
 
 class BusinessController extends Controller
 {
@@ -77,7 +78,19 @@ class BusinessController extends Controller
             'default_vat_rate' => ['sometimes', 'numeric', 'min:0', 'max:100'],
             'tax_id' => ['nullable', 'string', 'max:64'],
             'receipt_footer' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'public_shop_enabled' => ['sometimes', 'boolean'],
+            'public_shop_slug' => [
+                'nullable',
+                'string',
+                'max:64',
+                'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
+                Rule::unique('businesses', 'public_shop_slug')->ignore($business->id),
+            ],
         ]);
+
+        if (array_key_exists('public_shop_slug', $data) && ($data['public_shop_slug'] === '' || $data['public_shop_slug'] === null)) {
+            $data['public_shop_slug'] = null;
+        }
 
         $hadReceiptFooter = array_key_exists('receipt_footer', $data);
         $footer = Arr::pull($data, 'receipt_footer');
@@ -119,6 +132,12 @@ class BusinessController extends Controller
             'default_vat_rate' => (float) $business->default_vat_rate,
             'tax_id' => $business->tax_id,
             'receipt_footer' => data_get($business->settings, 'receipt_footer'),
+            'public_shop_enabled' => (bool) $business->public_shop_enabled,
+            'public_shop_slug' => $business->public_shop_slug,
+            'public_shop_url' => $business->public_shop_enabled ? url('/shop/'.$business->uuid) : null,
+            'public_shop_short_url' => ($business->public_shop_enabled && filled($business->public_shop_slug))
+                ? url('/s/'.$business->public_shop_slug)
+                : null,
             'my_role' => $pivot ? BusinessRole::normalize($pivot->role)->value : null,
             'locations' => $business->locations->map(fn (Location $l) => [
                 'uuid' => $l->uuid,
