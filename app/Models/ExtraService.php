@@ -11,6 +11,7 @@ class ExtraService extends Model
         'slug',
         'title',
         'description',
+        'icon_url',
         'fee_amount_ngn',
         'sort_order',
         'is_active',
@@ -36,6 +37,7 @@ class ExtraService extends Model
             'slug' => $this->slug,
             'title' => $this->title,
             'description' => $this->description,
+            'icon_url' => $this->icon_url,
             'fee_amount_ngn' => (float) $this->fee_amount_ngn,
         ];
     }

@@ -23,8 +23,17 @@
             <textarea class="adm-input" id="description" name="description" rows="5">{{ old('description', $service->description) }}</textarea>
         </div>
         <div class="adm-field">
-            <label class="adm-label" for="fee_amount_ngn">Fee (NGN)</label>
+            <label class="adm-label" for="icon_url">Icon / logo URL (optional)</label>
+            <input class="adm-input" id="icon_url" name="icon_url" type="text" maxlength="2048" placeholder="https://…" value="{{ old('icon_url', $service->icon_url) }}">
+            <p class="adm-page-desc" style="margin-top:0.35rem;">Square PNG or SVG over HTTPS. Shown in the mobile add-ons list; if empty, a default icon is used.</p>
+            @if(!empty($service->icon_url))
+                <p style="margin-top:0.5rem;"><img src="{{ $service->icon_url }}" alt="" width="48" height="48" style="object-fit:contain;border-radius:10px;border:1px solid var(--adm-border);background:var(--adm-surface, #fff);padding:4px;"></p>
+            @endif
+        </div>
+        <div class="adm-field">
+            <label class="adm-label" for="fee_amount_ngn">Listed fee (NGN)</label>
             <input class="adm-input" id="fee_amount_ngn" name="fee_amount_ngn" type="number" step="0.01" min="0" required value="{{ old('fee_amount_ngn', $service->fee_amount_ngn) }}">
+            <p class="adm-page-desc" style="margin-top:0.35rem;">This amount is shown to businesses in the app (not hidden as “on request”). Use <strong>0</strong> only if you intend to show a zero-listed fee.</p>
         </div>
         <div class="adm-field">
             <label class="adm-label" for="sort_order">Sort order</label>
