@@ -77,6 +77,21 @@ class Business extends Model
         return $this->hasMany(SubscriptionPayment::class);
     }
 
+    public function glAccounts(): HasMany
+    {
+        return $this->hasMany(GlAccount::class);
+    }
+
+    public function journalEntries(): HasMany
+    {
+        return $this->hasMany(JournalEntry::class);
+    }
+
+    public function bankAccounts(): HasMany
+    {
+        return $this->hasMany(BankAccount::class);
+    }
+
     public function loanApplications(): HasMany
     {
         return $this->hasMany(BusinessLoanApplication::class);

@@ -5,12 +5,17 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\Expense;
+use App\Services\GeneralLedgerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class ExpenseApiController extends Controller
 {
+    public function __construct(
+        private readonly GeneralLedgerService $ledger,
+    ) {}
+
     public function index(Request $request, Business $business): JsonResponse
     {
         $q = Expense::query()->where('business_id', $business->id)->with('location');
@@ -56,6 +61,8 @@ class ExpenseApiController extends Controller
             'version' => 1,
         ]);
 
+        $this->ledger->postExpenseJournal($business, $e);
+
         return response()->json(['data' => $this->row($e->load('location'))], 201);
     }
 
@@ -100,6 +107,9 @@ class ExpenseApiController extends Controller
         $expense->version = (int) $expense->version + 1;
         $expense->save();
 
+        $this->ledger->voidBySource($business, 'expense', $expense->uuid);
+        $this->ledger->postExpenseJournal($business, $expense->fresh());
+
         return response()->json(['data' => $this->row($expense->fresh('location'))]);
     }
 
@@ -109,6 +119,7 @@ class ExpenseApiController extends Controller
             ->where('business_id', $business->id)
             ->where('uuid', $expenseUuid)
             ->firstOrFail();
+        $this->ledger->voidBySource($business, 'expense', $expense->uuid);
         $expense->delete();
 
         return response()->json(['ok' => true]);

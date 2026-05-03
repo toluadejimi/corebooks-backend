@@ -4,7 +4,12 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BusinessController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\ExpenseApiController;
+use App\Http\Controllers\Api\V1\BankAccountController;
+use App\Http\Controllers\Api\V1\BankTransactionController;
 use App\Http\Controllers\Api\V1\ExtraServiceApplicationController;
+use App\Http\Controllers\Api\V1\GlAccountController;
+use App\Http\Controllers\Api\V1\GlReportController;
+use App\Http\Controllers\Api\V1\JournalEntryController;
 use App\Http\Controllers\Api\V1\ExtraServiceController;
 use App\Http\Controllers\Api\V1\LoanApplicationController;
 use App\Http\Controllers\Api\V1\LoanPartnerBankController;
@@ -80,6 +85,10 @@ Route::prefix('v1')->group(function (): void {
                     Route::get('reports/firs', [ReportController::class, 'firs']);
                     Route::get('reports/sales-ledger', [ReportController::class, 'salesLedger']);
 
+                    Route::get('gl-accounts', [GlAccountController::class, 'index']);
+                    Route::get('journal-entries', [JournalEntryController::class, 'index']);
+                    Route::get('gl-trial-balance', [GlReportController::class, 'trialBalance']);
+
                     Route::get('payroll/me', [PayrollController::class, 'myPayslips']);
                     Route::get('payroll/runs/{run}', [PayrollController::class, 'showRun']);
 
@@ -125,6 +134,13 @@ Route::prefix('v1')->group(function (): void {
                         Route::put('loan-application', [LoanApplicationController::class, 'update']);
                         Route::post('loan-application/submit', [LoanApplicationController::class, 'submit']);
                         Route::post('loan-application/documents', [LoanApplicationController::class, 'uploadDocument']);
+
+                        Route::post('journal-entries', [JournalEntryController::class, 'store']);
+                        Route::get('bank-accounts', [BankAccountController::class, 'index']);
+                        Route::post('bank-accounts', [BankAccountController::class, 'store']);
+                        Route::get('bank-transactions', [BankTransactionController::class, 'index']);
+                        Route::post('bank-transactions', [BankTransactionController::class, 'store']);
+                        Route::patch('bank-transactions/{bankTransaction:uuid}', [BankTransactionController::class, 'update']);
                     });
                 });
             });

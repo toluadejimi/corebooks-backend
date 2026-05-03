@@ -15,6 +15,7 @@ class PayrollService
 {
     public function __construct(
         private readonly NigeriaPayrollCalculator $calculator,
+        private readonly GeneralLedgerService $ledger,
     ) {}
 
     /**
@@ -60,10 +61,15 @@ class PayrollService
         if ($run->lines()->doesntExist()) {
             throw new InvalidArgumentException('Add at least one employee line before finalising.');
         }
-        $run->status = 'final';
-        $run->save();
 
-        return $run->fresh(['lines.user']);
+        return DB::transaction(function () use ($business, $run): PayrollRun {
+            $run->status = 'final';
+            $run->save();
+            $run = $run->fresh(['lines.user']);
+            $this->ledger->postPayrollJournal($business, $run);
+
+            return $run;
+        });
     }
 
     public function upsertLine(

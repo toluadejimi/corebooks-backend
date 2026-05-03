@@ -15,6 +15,10 @@ use InvalidArgumentException;
 
 class SaleCheckoutService
 {
+    public function __construct(
+        private readonly GeneralLedgerService $ledger,
+    ) {}
+
     public function checkout(
         Business $business,
         int $userId,
@@ -134,7 +138,10 @@ class SaleCheckoutService
                 throw new InvalidArgumentException('Payment total must match grand total.');
             }
 
-            return $sale->fresh(['lines.product', 'payments']);
+            $sale = $sale->fresh(['lines.product', 'payments']);
+            $this->ledger->postSaleJournal($business, $sale);
+
+            return $sale;
         });
     }
 
