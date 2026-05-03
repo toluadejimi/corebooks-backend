@@ -18,6 +18,8 @@ use App\Http\Controllers\Api\V1\MediaUploadController;
 use App\Http\Controllers\Api\V1\PayrollController;
 use App\Http\Controllers\Api\V1\PaystackWebhookController;
 use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\ProposalController;
+use App\Http\Controllers\Api\V1\QuotationController;
 use App\Http\Controllers\Api\V1\PurchaseController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\SaleController;
@@ -119,6 +121,23 @@ Route::prefix('v1')->group(function (): void {
                         Route::post('products', [ProductController::class, 'store']);
                         Route::match(['put', 'patch'], 'products/{product}', [ProductController::class, 'update']);
                         Route::delete('products/{product}', [ProductController::class, 'destroy']);
+
+                        Route::get('quotations', [QuotationController::class, 'index']);
+                        Route::post('quotations', [QuotationController::class, 'store']);
+                        Route::get('quotations/{quotation}', [QuotationController::class, 'show']);
+                        Route::patch('quotations/{quotation}', [QuotationController::class, 'update']);
+                        Route::delete('quotations/{quotation}', [QuotationController::class, 'destroy']);
+                        Route::get('quotations/{quotation}/pdf', [QuotationController::class, 'pdf']);
+                        Route::post('quotations/{quotation}/email', [QuotationController::class, 'email']);
+
+                        Route::post('proposals/ai-draft', [ProposalController::class, 'generateAi']);
+                        Route::get('proposals', [ProposalController::class, 'index']);
+                        Route::post('proposals', [ProposalController::class, 'store']);
+                        Route::get('proposals/{proposal}', [ProposalController::class, 'show']);
+                        Route::patch('proposals/{proposal}', [ProposalController::class, 'update']);
+                        Route::delete('proposals/{proposal}', [ProposalController::class, 'destroy']);
+                        Route::get('proposals/{proposal}/pdf', [ProposalController::class, 'pdf']);
+                        Route::post('proposals/{proposal}/email', [ProposalController::class, 'email']);
 
                         Route::post('sync/push', [SyncController::class, 'push']);
 

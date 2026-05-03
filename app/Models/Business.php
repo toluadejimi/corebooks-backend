@@ -104,4 +104,14 @@ class Business extends Model
     {
         return $this->hasMany(ExtraServiceApplication::class);
     }
+
+    public function quotations(): HasMany
+    {
+        return $this->hasMany(Quotation::class);
+    }
+
+    public function proposals(): HasMany
+    {
+        return $this->hasMany(Proposal::class);
+    }
 }
