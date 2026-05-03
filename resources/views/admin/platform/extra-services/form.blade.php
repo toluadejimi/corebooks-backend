@@ -31,6 +31,18 @@
             @endif
         </div>
         <div class="adm-field">
+            <label class="adm-label" for="application_form_json">Application form (JSON, optional)</label>
+            <textarea class="adm-input" id="application_form_json" name="application_form_json" rows="14" style="font-family:ui-monospace,monospace;font-size:0.85rem;">{{ old('application_form_json', isset($service->application_form) && is_array($service->application_form) ? json_encode($service->application_form, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : '') }}</textarea>
+            <p class="adm-page-desc" style="margin-top:0.35rem;">If set, the mobile app shows these fields when someone taps <strong>Request service</strong> instead of a single notes box. Leave empty to keep the simple optional notes field.</p>
+            <p class="adm-page-desc" style="margin-top:0.25rem;"><strong>Shape:</strong> a JSON <em>array</em> of objects, each with <code>key</code> (snake_case), <code>type</code> (<code>text</code>, <code>textarea</code>, <code>email</code>, <code>tel</code>, <code>number</code>), <code>label</code>, <code>required</code> (boolean), optional <code>max</code> (character limit).</p>
+            <pre style="margin-top:0.5rem;padding:0.75rem;background:var(--adm-surface, #f8fafc);border-radius:8px;font-size:0.78rem;overflow:auto;border:1px solid var(--adm-border);">[
+  {"key":"contact_name","type":"text","label":"Contact name","required":true,"max":120},
+  {"key":"email","type":"email","label":"Work email","required":true,"max":255},
+  {"key":"details","type":"textarea","label":"What do you need?","required":true,"max":2000}
+]</pre>
+            @error('application_form_json')<p style="color:var(--adm-danger);font-size:0.85rem;margin-top:0.35rem;">{{ $message }}</p>@enderror
+        </div>
+        <div class="adm-field">
             <label class="adm-label" for="fee_amount_ngn">Listed fee (NGN)</label>
             <input class="adm-input" id="fee_amount_ngn" name="fee_amount_ngn" type="number" step="0.01" min="0" required value="{{ old('fee_amount_ngn', $service->fee_amount_ngn) }}">
             <p class="adm-page-desc" style="margin-top:0.35rem;">This amount is shown to businesses in the app (not hidden as “on request”). Use <strong>0</strong> only if you intend to show a zero-listed fee.</p>

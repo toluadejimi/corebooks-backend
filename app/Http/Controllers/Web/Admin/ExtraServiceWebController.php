@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ExtraService;
+use App\Support\ExtraServiceFormDefinition;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ExtraServiceWebController extends Controller
@@ -76,16 +78,36 @@ class ExtraServiceWebController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:8000'],
             'icon_url' => ['nullable', 'string', 'max:2048'],
+            'application_form_json' => ['nullable', 'string', 'max:65000'],
             'fee_amount_ngn' => ['required', 'numeric', 'min:0'],
             'sort_order' => ['required', 'integer', 'min:0', 'max:65535'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
+
+        $applicationForm = null;
+        $rawForm = $data['application_form_json'] ?? null;
+        if (is_string($rawForm) && trim($rawForm) !== '') {
+            $decoded = json_decode($rawForm, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw ValidationException::withMessages([
+                    'application_form_json' => ['Invalid JSON: '.json_last_error_msg()],
+                ]);
+            }
+            if (! is_array($decoded)) {
+                throw ValidationException::withMessages([
+                    'application_form_json' => ['Application form must be a JSON array.'],
+                ]);
+            }
+            ExtraServiceFormDefinition::assertValidDefinition($decoded);
+            $applicationForm = $decoded;
+        }
 
         return [
             'slug' => $data['slug'],
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
             'icon_url' => ($data['icon_url'] ?? '') !== '' ? $data['icon_url'] : null,
+            'application_form' => $applicationForm,
             'fee_amount_ngn' => $data['fee_amount_ngn'],
             'sort_order' => (int) $data['sort_order'],
             'is_active' => $request->boolean('is_active'),

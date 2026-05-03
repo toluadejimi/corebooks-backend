@@ -14,6 +14,17 @@
         <dt style="color:var(--adm-muted);">Status</dt><dd><span class="adm-role-pill">{{ $application->status }}</span></dd>
         <dt style="color:var(--adm-muted);">Fee (catalog)</dt><dd>₦{{ number_format((float) ($application->extraService?->fee_amount_ngn ?? 0), 2) }}</dd>
         <dt style="color:var(--adm-muted);">Applicant notes</dt><dd style="white-space:pre-wrap;">{{ $application->applicant_notes ?: '—' }}</dd>
+        @if(!empty($application->applicant_payload) && is_array($application->applicant_payload))
+            <dt style="color:var(--adm-muted);">Form answers</dt>
+            <dd style="grid-column:1/-1;">
+                <dl style="display:grid;grid-template-columns:140px 1fr;gap:0.25rem 0.75rem;margin:0;">
+                    @foreach ($application->applicant_payload as $k => $v)
+                        <dt style="color:var(--adm-muted);font-size:0.9em;">{{ $k }}</dt>
+                        <dd style="white-space:pre-wrap;margin:0;">{{ is_scalar($v) ? (string) $v : json_encode($v) }}</dd>
+                    @endforeach
+                </dl>
+            </dd>
+        @endif
         <dt style="color:var(--adm-muted);">Submitted</dt><dd>{{ $application->created_at?->format('Y-m-d H:i') }}</dd>
     </dl>
 </div>

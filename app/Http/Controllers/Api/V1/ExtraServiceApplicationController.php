@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\ExtraService;
 use App\Models\ExtraServiceApplication;
+use App\Support\ExtraServiceFormDefinition;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -32,6 +33,7 @@ class ExtraServiceApplicationController extends Controller
         $data = $request->validate([
             'extra_service_id' => ['required', 'integer', 'exists:extra_services,id'],
             'applicant_notes' => ['nullable', 'string', 'max:5000'],
+            'applicant_payload' => ['nullable', 'array'],
         ]);
 
         $service = ExtraService::query()
@@ -42,6 +44,24 @@ class ExtraServiceApplicationController extends Controller
         if ($service === null) {
             throw ValidationException::withMessages([
                 'extra_service_id' => ['This service is not available.'],
+            ]);
+        }
+
+        $formDef = $service->application_form;
+        $formList = is_array($formDef) ? $formDef : null;
+        $hasForm = ExtraServiceFormDefinition::hasFields($formList);
+
+        $normalizedPayload = null;
+        if ($hasForm) {
+            /** @var array<int, array<string, mixed>> $formList */
+            $formList = array_values(array_filter($formList, 'is_array'));
+            $normalizedPayload = ExtraServiceFormDefinition::validatePayload(
+                $formList,
+                is_array($data['applicant_payload'] ?? null) ? $data['applicant_payload'] : [],
+            );
+        } elseif (! empty($data['applicant_payload'])) {
+            throw ValidationException::withMessages([
+                'applicant_payload' => ['This add-on does not use a structured form.'],
             ]);
         }
 
@@ -63,6 +83,7 @@ class ExtraServiceApplicationController extends Controller
             'extra_service_id' => $service->id,
             'status' => 'pending',
             'applicant_notes' => $data['applicant_notes'] ?? null,
+            'applicant_payload' => $normalizedPayload === [] || $normalizedPayload === null ? null : $normalizedPayload,
         ]);
 
         return response()->json([
