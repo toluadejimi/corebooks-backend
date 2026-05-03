@@ -36,7 +36,7 @@
             <div class="adm-field">
                 <label class="adm-label" for="partner_bank_search">Partner bank</label>
                 <input type="search" class="adm-input" id="partner_bank_search" autocomplete="off" placeholder="Type to filter banks…" style="margin-bottom:0.5rem;">
-                <select class="adm-input" id="loan_partner_bank_id" name="loan_partner_bank_id" size="{{ $banks->isEmpty() ? 1 : min(8, max(3, $banks->count() + 1))) }}" style="height:auto;max-height:14rem;">
+                <select class="adm-input" id="loan_partner_bank_id" name="loan_partner_bank_id" size="{{ $banks->isEmpty() ? 1 : min(8, max(3, $banks->count() + 1)) }}" style="height:auto;max-height:14rem;">
                     <option value="" data-label="">— Choose later (draft) —</option>
                     @foreach ($banks as $b)
                         <option
