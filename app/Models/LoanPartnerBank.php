@@ -10,6 +10,7 @@ class LoanPartnerBank extends Model
     protected $fillable = [
         'slug',
         'name',
+        'logo_url',
         'min_amount_ngn',
         'max_amount_ngn',
         'notes',
@@ -37,6 +38,7 @@ class LoanPartnerBank extends Model
             'id' => $this->id,
             'slug' => $this->slug,
             'name' => $this->name,
+            'logo_url' => $this->logo_url,
             'min_amount_ngn' => (float) $this->min_amount_ngn,
             'max_amount_ngn' => (float) $this->max_amount_ngn,
         ];

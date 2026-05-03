@@ -75,6 +75,7 @@ class LoanPartnerBankWebController extends Controller
         $data = $request->validate([
             'slug' => $slugRule,
             'name' => ['required', 'string', 'max:255'],
+            'logo_url' => ['nullable', 'string', 'max:2048'],
             'min_amount_ngn' => ['required', 'numeric', 'min:0'],
             'max_amount_ngn' => ['required', 'numeric', 'min:0', 'gte:min_amount_ngn'],
             'notes' => ['nullable', 'string', 'max:2000'],
@@ -85,6 +86,7 @@ class LoanPartnerBankWebController extends Controller
         return [
             'slug' => $data['slug'],
             'name' => $data['name'],
+            'logo_url' => $data['logo_url'] ?? null,
             'min_amount_ngn' => $data['min_amount_ngn'],
             'max_amount_ngn' => $data['max_amount_ngn'],
             'notes' => $data['notes'] ?? null,

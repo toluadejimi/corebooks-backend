@@ -34,20 +34,81 @@
                 <input class="adm-input" id="certificate_file" name="certificate_file" type="file" accept=".pdf,image/*">
             </div>
             <div class="adm-field">
-                <label class="adm-label" for="loan_partner_bank_id">Partner bank</label>
-                <select class="adm-input" id="loan_partner_bank_id" name="loan_partner_bank_id">
-                    <option value="">— Choose later (draft) —</option>
+                <label class="adm-label" for="partner_bank_search">Partner bank</label>
+                <input type="search" class="adm-input" id="partner_bank_search" autocomplete="off" placeholder="Type to filter banks…" style="margin-bottom:0.5rem;">
+                <select class="adm-input" id="loan_partner_bank_id" name="loan_partner_bank_id" size="{{ $banks->isEmpty() ? 1 : min(8, max(3, $banks->count() + 1))) }}" style="height:auto;max-height:14rem;">
+                    <option value="" data-label="">— Choose later (draft) —</option>
                     @foreach ($banks as $b)
-                        <option value="{{ $b->id }}" @selected((string) old('loan_partner_bank_id', $application?->loan_partner_bank_id) === (string) $b->id)>
+                        <option
+                            value="{{ $b->id }}"
+                            data-label="{{ strtolower($b->name.' '.$b->slug) }}"
+                            @selected((string) old('loan_partner_bank_id', $application?->loan_partner_bank_id) === (string) $b->id)
+                        >
                             {{ $b->name }} (₦{{ number_format((float) $b->min_amount_ngn, 0) }} – ₦{{ number_format((float) $b->max_amount_ngn, 0) }})
                         </option>
                     @endforeach
                 </select>
+                @unless($banks->isEmpty())
+                    <div id="partner_bank_chips" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.65rem;">
+                        @foreach ($banks as $b)
+                            <button type="button" class="adm-btn adm-btn-ghost partner-bank-chip" data-bank-id="{{ $b->id }}" data-label="{{ strtolower($b->name.' '.$b->slug) }}" style="display:inline-flex;align-items:center;gap:0.45rem;padding:0.35rem 0.55rem;border-radius:10px;border:1px solid var(--adm-border);">
+                                @if(!empty($b->logo_url))
+                                    <img src="{{ $b->logo_url }}" alt="" width="28" height="28" style="object-fit:contain;border-radius:6px;">
+                                @else
+                                    <span style="width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;background:var(--adm-border);border-radius:6px;font-size:0.75rem;">₦</span>
+                                @endif
+                                <span style="font-size:0.88rem;max-width:10rem;text-align:left;line-height:1.2;">{{ $b->name }}</span>
+                            </button>
+                        @endforeach
+                    </div>
+                @endunless
                 @error('loan_partner_bank_id')<p style="color:var(--adm-danger);font-size:0.85rem;margin:0.25rem 0 0;">{{ $message }}</p>@enderror
                 @if($banks->isEmpty())
                     <p style="color:var(--adm-warn, #b45309);font-size:0.85rem;margin:0.35rem 0 0;">No partner banks are configured yet. Ask your platform admin to add banks under Portfolio → Partner banks before you can submit.</p>
                 @endif
             </div>
+            @unless($banks->isEmpty())
+            <script>
+            (function () {
+                var search = document.getElementById('partner_bank_search');
+                var sel = document.getElementById('loan_partner_bank_id');
+                if (!search || !sel) return;
+                function norm(s) { return (s || '').toLowerCase().trim(); }
+                function applyFilter() {
+                    var q = norm(search.value);
+                    var opts = sel.querySelectorAll('option');
+                    opts.forEach(function (opt) {
+                        if (opt.value === '') {
+                            opt.hidden = false;
+                            return;
+                        }
+                        var lab = opt.getAttribute('data-label') || opt.textContent || '';
+                        opt.hidden = q.length > 0 && lab.indexOf(q) === -1;
+                    });
+                    document.querySelectorAll('.partner-bank-chip').forEach(function (chip) {
+                        var lab = chip.getAttribute('data-label') || '';
+                        chip.style.display = (q.length === 0 || lab.indexOf(q) !== -1) ? 'inline-flex' : 'none';
+                    });
+                }
+                search.addEventListener('input', applyFilter);
+                sel.addEventListener('change', function () {
+                    document.querySelectorAll('.partner-bank-chip').forEach(function (chip) {
+                        var on = chip.getAttribute('data-bank-id') === sel.value;
+                        chip.style.outline = on ? '2px solid var(--adm-primary, #2563eb)' : '';
+                        chip.style.outlineOffset = on ? '2px' : '';
+                    });
+                });
+                document.querySelectorAll('.partner-bank-chip').forEach(function (chip) {
+                    chip.addEventListener('click', function () {
+                        sel.value = chip.getAttribute('data-bank-id');
+                        sel.dispatchEvent(new Event('change'));
+                    });
+                });
+                applyFilter();
+                sel.dispatchEvent(new Event('change'));
+            })();
+            </script>
+            @endunless
             <div class="adm-field">
                 <label class="adm-label" for="loan_amount_requested">Loan amount requested (NGN)</label>
                 <input class="adm-input" id="loan_amount_requested" name="loan_amount_requested" type="number" step="0.01" min="0" value="{{ old('loan_amount_requested', $application?->loan_amount_requested) }}">

@@ -15,6 +15,7 @@
     <table class="adm-table" style="width:100%;border-collapse:collapse;">
         <thead>
             <tr style="text-align:left;border-bottom:1px solid var(--adm-border);">
+                <th style="padding:0.5rem;">Logo</th>
                 <th style="padding:0.5rem;">Name</th>
                 <th style="padding:0.5rem;">Slug</th>
                 <th style="padding:0.5rem;">Min ₦</th>
@@ -26,6 +27,13 @@
         <tbody>
             @foreach ($banks as $b)
                 <tr style="border-bottom:1px solid var(--adm-border);">
+                    <td style="padding:0.65rem 0.5rem;">
+                        @if(!empty($b->logo_url))
+                            <img src="{{ $b->logo_url }}" alt="" width="40" height="40" style="object-fit:contain;border-radius:8px;border:1px solid var(--adm-border);background:var(--adm-surface, #fff);padding:2px;">
+                        @else
+                            <span style="color:var(--adm-muted);font-size:0.85rem;">—</span>
+                        @endif
+                    </td>
                     <td style="padding:0.65rem 0.5rem;">{{ $b->name }}</td>
                     <td style="padding:0.65rem 0.5rem;"><code>{{ $b->slug }}</code></td>
                     <td style="padding:0.65rem 0.5rem;">{{ number_format((float) $b->min_amount_ngn, 2) }}</td>

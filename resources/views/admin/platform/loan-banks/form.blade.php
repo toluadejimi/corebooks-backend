@@ -19,6 +19,14 @@
             <input class="adm-input" id="name" name="name" required maxlength="255" value="{{ old('name', $bank->name) }}">
         </div>
         <div class="adm-field">
+            <label class="adm-label" for="logo_url">Logo URL (optional)</label>
+            <input class="adm-input" id="logo_url" name="logo_url" type="url" maxlength="2048" placeholder="https://…" value="{{ old('logo_url', $bank->logo_url) }}">
+            <p class="adm-page-desc" style="margin-top:0.35rem;">HTTPS image shown in the mobile app when businesses pick this bank (square PNG or SVG host that allows hotlinking).</p>
+            @if(!empty($bank->logo_url))
+                <p style="margin-top:0.5rem;"><img src="{{ $bank->logo_url }}" alt="" width="56" height="56" style="object-fit:contain;border-radius:8px;border:1px solid var(--adm-border);background:var(--adm-surface, #fff);padding:4px;"></p>
+            @endif
+        </div>
+        <div class="adm-field">
             <label class="adm-label" for="min_amount_ngn">Minimum loan (NGN)</label>
             <input class="adm-input" id="min_amount_ngn" name="min_amount_ngn" type="number" step="0.01" min="0" required value="{{ old('min_amount_ngn', $bank->min_amount_ngn) }}">
         </div>
