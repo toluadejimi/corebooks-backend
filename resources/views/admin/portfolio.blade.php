@@ -8,6 +8,20 @@
     <p class="adm-page-desc">Connect to a business to manage catalog, stock, and team. Register a new business anytime — you become the owner.</p>
 </div>
 
+@php($platformEmails = config('salesapp.platform_admin_emails', []))
+@php($isPlatformAdmin = in_array(strtolower($user->email), $platformEmails, true))
+@if ($isPlatformAdmin)
+    <div class="adm-card" style="margin-bottom:2rem;border-left:4px solid var(--adm-accent, #6366f1);">
+        <h2 class="adm-page-title" style="font-size:1.1rem;">Platform administration</h2>
+        <p class="adm-page-desc" style="margin-bottom:0.75rem;">Configure subscription plans, partner banks, and review loan applications.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+            <a href="{{ route('admin.platform.plans.index') }}" class="adm-btn adm-btn-primary">Subscription plans</a>
+            <a href="{{ route('admin.platform.loan-banks.index') }}" class="adm-btn adm-btn-ghost">Partner banks</a>
+            <a href="{{ route('admin.platform.loans.index') }}" class="adm-btn adm-btn-ghost">Loan applications</a>
+        </div>
+    </div>
+@endif
+
 <div class="adm-card" style="margin-bottom:2rem;">
     <h2 class="adm-page-title" style="font-size:1.15rem;">Register a new business</h2>
     <p class="adm-page-desc" style="margin-bottom:1rem;">Creates a default location (Main) and assigns you as <strong>owner</strong>.</p>

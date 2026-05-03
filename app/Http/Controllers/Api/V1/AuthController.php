@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\Location;
 use App\Models\User;
+use App\Services\BusinessCreator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -15,6 +16,10 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private readonly BusinessCreator $businessCreator,
+    ) {}
+
     public function register(Request $request): JsonResponse
     {
         $request->merge([
@@ -26,6 +31,7 @@ class AuthController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
             'business_name' => ['nullable', 'string', 'max:255'],
+            'subscription_plan_slug' => ['nullable', 'string', 'exists:subscription_plans,slug'],
         ]);
 
         $user = User::query()->create([
@@ -35,17 +41,11 @@ class AuthController extends Controller
         ]);
 
         if (! empty($data['business_name'])) {
-            $business = Business::query()->create([
-                'uuid' => (string) Str::uuid(),
-                'name' => $data['business_name'],
-            ]);
-            $business->users()->attach($user->id, ['role' => BusinessRole::Owner->value]);
-            Location::query()->create([
-                'business_id' => $business->id,
-                'uuid' => (string) Str::uuid(),
-                'name' => 'Main',
-                'is_default' => true,
-            ]);
+            $this->businessCreator->create(
+                $user,
+                $data['business_name'],
+                $data['subscription_plan_slug'] ?? null,
+            );
         }
 
         $token = $user->createToken('mobile')->plainTextToken;
@@ -99,7 +99,7 @@ class AuthController extends Controller
 
     private function userPayload(User $user): array
     {
-        $user->load(['businesses' => fn ($q) => $q->orderBy('name')->withPivot('location_id')]);
+        $user->load(['businesses' => fn ($q) => $q->orderBy('name')->withPivot('location_id')->with('subscriptionPlan')]);
 
         return [
             'id' => $user->id,
@@ -113,6 +113,12 @@ class AuthController extends Controller
                 'assigned_location_uuid' => $b->pivot->location_id
                     ? Location::query()->where('business_id', $b->id)->where('id', $b->pivot->location_id)->value('uuid')
                     : null,
+                'subscription' => [
+                    'status' => $b->subscription_status,
+                    'trial_ends_at' => $b->subscription_trial_ends_at?->toIso8601String(),
+                    'current_period_end' => $b->subscription_current_period_end?->toIso8601String(),
+                    'plan' => $b->subscriptionPlan?->toApiArray(),
+                ],
             ]),
         ];
     }

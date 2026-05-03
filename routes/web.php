@@ -2,19 +2,27 @@
 
 use App\Http\Controllers\Web\Admin\BusinessSettingsWebController;
 use App\Http\Controllers\Web\Admin\CategoryWebController;
+use App\Http\Controllers\Web\Admin\LoanApplicationPlatformWebController;
+use App\Http\Controllers\Web\Admin\LoanPartnerBankWebController;
+use App\Http\Controllers\Web\Admin\LoanWorkspaceWebController;
 use App\Http\Controllers\Web\Admin\PayrollWebController;
 use App\Http\Controllers\Web\Admin\PortfolioController;
 use App\Http\Controllers\Web\Admin\ProductWebController;
 use App\Http\Controllers\Web\Admin\PurchaseWebController;
 use App\Http\Controllers\Web\Admin\ReportsWebController;
 use App\Http\Controllers\Web\Admin\StockWebController;
+use App\Http\Controllers\Web\Admin\SubscriptionPlanWebController;
 use App\Http\Controllers\Web\Admin\TeamWebController;
 use App\Http\Controllers\Web\Admin\WorkspaceController;
 use App\Http\Controllers\Web\AdminAuthController;
+use App\Http\Controllers\Web\PaystackSubscriptionReturnController;
 use App\Http\Middleware\EnsureBusinessMember;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'landing');
+
+Route::get('/paystack/subscription-return', [PaystackSubscriptionReturnController::class, 'show'])
+    ->name('paystack.subscription-return');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/admin/login', [AdminAuthController::class, 'showLoginForm'])->name('login');
@@ -28,6 +36,26 @@ Route::post('/admin/logout', [AdminAuthController::class, 'logout'])
 Route::middleware('auth')->group(function (): void {
     Route::get('/admin', [PortfolioController::class, 'index'])->name('dashboard');
     Route::post('/admin/businesses', [PortfolioController::class, 'store'])->name('admin.businesses.store');
+
+    Route::middleware('platform.admin')->prefix('admin/platform')->name('admin.platform.')->group(function (): void {
+        Route::get('subscription-plans', [SubscriptionPlanWebController::class, 'index'])->name('plans.index');
+        Route::get('subscription-plans/create', [SubscriptionPlanWebController::class, 'create'])->name('plans.create');
+        Route::post('subscription-plans', [SubscriptionPlanWebController::class, 'store'])->name('plans.store');
+        Route::get('subscription-plans/{plan}/edit', [SubscriptionPlanWebController::class, 'edit'])->name('plans.edit');
+        Route::put('subscription-plans/{plan}', [SubscriptionPlanWebController::class, 'update'])->name('plans.update');
+        Route::delete('subscription-plans/{plan}', [SubscriptionPlanWebController::class, 'destroy'])->name('plans.destroy');
+
+        Route::get('loan-applications', [LoanApplicationPlatformWebController::class, 'index'])->name('loans.index');
+        Route::get('loan-applications/{loanApplication}', [LoanApplicationPlatformWebController::class, 'show'])->name('loans.show');
+        Route::put('loan-applications/{loanApplication}', [LoanApplicationPlatformWebController::class, 'update'])->name('loans.update');
+
+        Route::get('loan-partner-banks', [LoanPartnerBankWebController::class, 'index'])->name('loan-banks.index');
+        Route::get('loan-partner-banks/create', [LoanPartnerBankWebController::class, 'create'])->name('loan-banks.create');
+        Route::post('loan-partner-banks', [LoanPartnerBankWebController::class, 'store'])->name('loan-banks.store');
+        Route::get('loan-partner-banks/{loanPartnerBank}/edit', [LoanPartnerBankWebController::class, 'edit'])->name('loan-banks.edit');
+        Route::put('loan-partner-banks/{loanPartnerBank}', [LoanPartnerBankWebController::class, 'update'])->name('loan-banks.update');
+        Route::delete('loan-partner-banks/{loanPartnerBank}', [LoanPartnerBankWebController::class, 'destroy'])->name('loan-banks.destroy');
+    });
 
     Route::prefix('admin/b/{business:uuid}')
         ->middleware(EnsureBusinessMember::class)
@@ -86,6 +114,10 @@ Route::middleware('auth')->group(function (): void {
                 Route::post('/payroll/{run}/lines', [PayrollWebController::class, 'storeLine'])->name('payroll.lines.store');
                 Route::delete('/payroll/{run}/lines/{user}', [PayrollWebController::class, 'destroyLine'])->name('payroll.lines.destroy');
                 Route::post('/payroll/{run}/finalize', [PayrollWebController::class, 'finalize'])->name('payroll.finalize');
+
+                Route::get('/loan', [LoanWorkspaceWebController::class, 'edit'])->name('loan.edit');
+                Route::put('/loan', [LoanWorkspaceWebController::class, 'update'])->name('loan.update');
+                Route::post('/loan/submit', [LoanWorkspaceWebController::class, 'submit'])->name('loan.submit');
             });
         });
 });

@@ -1,5 +1,9 @@
 <?php
 
+use App\Http\Middleware\AuthorizeBusinessRole;
+use App\Http\Middleware\EnsureBusinessMember;
+use App\Http\Middleware\EnsureBusinessSubscriptionActive;
+use App\Http\Middleware\EnsurePlatformAdmin;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,8 +20,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
 
         $middleware->alias([
-            'business.member' => \App\Http\Middleware\EnsureBusinessMember::class,
-            'business.role' => \App\Http\Middleware\AuthorizeBusinessRole::class,
+            'business.member' => EnsureBusinessMember::class,
+            'business.role' => AuthorizeBusinessRole::class,
+            'business.subscription' => EnsureBusinessSubscriptionActive::class,
+            'platform.admin' => EnsurePlatformAdmin::class,
         ]);
 
         $middleware->redirectGuestsTo(fn () => route('login'));

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -23,6 +24,10 @@ class Business extends Model
         'tax_id',
         'settings',
         'version',
+        'subscription_plan_id',
+        'subscription_status',
+        'subscription_trial_ends_at',
+        'subscription_current_period_end',
     ];
 
     protected function casts(): array
@@ -30,6 +35,8 @@ class Business extends Model
         return [
             'settings' => 'array',
             'default_vat_rate' => 'decimal:2',
+            'subscription_trial_ends_at' => 'datetime',
+            'subscription_current_period_end' => 'datetime',
         ];
     }
 
@@ -58,5 +65,20 @@ class Business extends Model
     public function payrollRuns(): HasMany
     {
         return $this->hasMany(PayrollRun::class);
+    }
+
+    public function subscriptionPlan(): BelongsTo
+    {
+        return $this->belongsTo(SubscriptionPlan::class, 'subscription_plan_id');
+    }
+
+    public function subscriptionPayments(): HasMany
+    {
+        return $this->hasMany(SubscriptionPayment::class);
+    }
+
+    public function loanApplications(): HasMany
+    {
+        return $this->hasMany(BusinessLoanApplication::class);
     }
 }

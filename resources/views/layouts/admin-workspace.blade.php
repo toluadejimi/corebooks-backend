@@ -54,6 +54,11 @@
                 <a href="{{ route('admin.b.settings.edit', $business) }}" class="{{ request()->routeIs('admin.b.settings.*') ? 'active' : '' }}">
                     <span class="adm-nav-icon">⚙</span> Settings
                 </a>
+                @if($canManage)
+                    <a href="{{ route('admin.b.loan.edit', $business) }}" class="{{ request()->routeIs('admin.b.loan.*') ? 'active' : '' }}">
+                        <span class="adm-nav-icon">₪</span> Business loan
+                    </a>
+                @endif
             </nav>
             <div class="adm-sidebar-foot">
                 <a href="{{ route('dashboard') }}">← All businesses</a>

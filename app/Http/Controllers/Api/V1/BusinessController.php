@@ -21,6 +21,7 @@ class BusinessController extends Controller
     {
         $businesses = $request->user()
             ->businesses()
+            ->with('subscriptionPlan')
             ->orderBy('name')
             ->get();
 
@@ -36,18 +37,23 @@ class BusinessController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'subscription_plan_slug' => ['nullable', 'string', 'exists:subscription_plans,slug'],
         ]);
 
-        $business = $this->businessCreator->create($request->user(), $data['name']);
+        $business = $this->businessCreator->create(
+            $request->user(),
+            $data['name'],
+            $data['subscription_plan_slug'] ?? null,
+        );
 
         return response()->json([
-            'data' => $this->businessSummary($business),
+            'data' => $this->businessSummary($business->load('subscriptionPlan')),
         ], 201);
     }
 
     public function show(Request $request, Business $business): JsonResponse
     {
-        $business->load(['locations' => fn ($q) => $q->orderByDesc('is_default')]);
+        $business->load(['locations' => fn ($q) => $q->orderByDesc('is_default'), 'subscriptionPlan']);
 
         $pivot = $request->user()->businesses()->where('businesses.id', $business->id)->first()?->pivot;
 
@@ -90,7 +96,7 @@ class BusinessController extends Controller
         $business->save();
 
         $pivot = $request->user()->businesses()->where('businesses.id', $business->id)->first()?->pivot;
-        $business->load(['locations' => fn ($q) => $q->orderByDesc('is_default')]);
+        $business->load(['locations' => fn ($q) => $q->orderByDesc('is_default'), 'subscriptionPlan']);
 
         return response()->json([
             'data' => $this->businessDetail($business, $pivot),
@@ -119,11 +125,19 @@ class BusinessController extends Controller
                 'name' => $l->name,
                 'is_default' => $l->is_default,
             ]),
+            'subscription' => [
+                'status' => $business->subscription_status,
+                'trial_ends_at' => $business->subscription_trial_ends_at?->toIso8601String(),
+                'current_period_end' => $business->subscription_current_period_end?->toIso8601String(),
+                'plan' => $business->subscriptionPlan?->toApiArray(),
+            ],
         ];
     }
 
     private function businessSummary(Business $b): array
     {
+        $b->loadMissing('subscriptionPlan');
+
         return [
             'uuid' => $b->uuid,
             'name' => $b->name,
@@ -131,6 +145,12 @@ class BusinessController extends Controller
             'currency' => $b->currency,
             'default_vat_rate' => (float) $b->default_vat_rate,
             'country' => $b->country ?? 'NG',
+            'subscription' => [
+                'status' => $b->subscription_status,
+                'trial_ends_at' => $b->subscription_trial_ends_at?->toIso8601String(),
+                'current_period_end' => $b->subscription_current_period_end?->toIso8601String(),
+                'plan' => $b->subscriptionPlan?->toApiArray(),
+            ],
         ];
     }
 }
