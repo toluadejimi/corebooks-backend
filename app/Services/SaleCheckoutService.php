@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Business;
+use App\Models\Customer;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductBatch;
@@ -27,24 +28,27 @@ class SaleCheckoutService
         array $payments,
         ?string $idempotencyKey,
         float $discountTotal = 0,
+        ?string $customerUuid = null,
     ): Sale {
-        return DB::transaction(function () use ($business, $userId, $locationUuid, $lines, $payments, $idempotencyKey, $discountTotal) {
+        return DB::transaction(function () use ($business, $userId, $locationUuid, $lines, $payments, $idempotencyKey, $discountTotal, $customerUuid) {
             if ($idempotencyKey) {
                 $existing = Sale::query()
                     ->where('business_id', $business->id)
                     ->where('idempotency_key', $idempotencyKey)
                     ->first();
                 if ($existing) {
-                    return $existing->load(['lines.product', 'payments']);
+                    return $existing->load(['lines.product', 'payments', 'customer']);
                 }
             }
 
             $location = $business->locations()->where('uuid', $locationUuid)->firstOrFail();
+            $customer = $this->resolveCustomer($business, $customerUuid);
 
             $sale = Sale::query()->create([
                 'business_id' => $business->id,
                 'location_id' => $location->id,
                 'user_id' => $userId,
+                'customer_id' => $customer?->id,
                 'uuid' => (string) Str::uuid(),
                 'receipt_no' => $this->nextReceiptNo($business),
                 'status' => 'completed',
@@ -138,11 +142,43 @@ class SaleCheckoutService
                 throw new InvalidArgumentException('Payment total must match grand total.');
             }
 
-            $sale = $sale->fresh(['lines.product', 'payments']);
+            $sale = $sale->fresh(['lines.product', 'payments', 'customer']);
             $this->ledger->postSaleJournal($business, $sale);
 
             return $sale;
         });
+    }
+
+    /**
+     * Returns the requested customer or — if none / unknown — the auto-seeded Walk-in customer.
+     */
+    private function resolveCustomer(Business $business, ?string $customerUuid): ?Customer
+    {
+        if ($customerUuid !== null && $customerUuid !== '') {
+            $customer = Customer::query()
+                ->where('business_id', $business->id)
+                ->where('uuid', $customerUuid)
+                ->first();
+            if ($customer) {
+                return $customer;
+            }
+        }
+
+        $walkIn = Customer::query()
+            ->where('business_id', $business->id)
+            ->where('is_walk_in', true)
+            ->first();
+        if ($walkIn) {
+            return $walkIn;
+        }
+
+        return Customer::query()->create([
+            'business_id' => $business->id,
+            'uuid' => (string) Str::uuid(),
+            'name' => 'Walk-in customer',
+            'is_walk_in' => true,
+            'version' => 1,
+        ]);
     }
 
     private function nextReceiptNo(Business $business): string

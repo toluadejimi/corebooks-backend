@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BusinessController;
 use App\Http\Controllers\Api\V1\BusinessTokenController;
 use App\Http\Controllers\Api\V1\CategoryController;
+use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\ExpenseApiController;
 use App\Http\Controllers\Api\V1\BankAccountController;
 use App\Http\Controllers\Api\V1\BankTransactionController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\Api\V1\QuotationController;
 use App\Http\Controllers\Api\V1\PurchaseController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\SaleController;
+use App\Http\Controllers\Api\V1\SalesReturnController;
 use App\Http\Controllers\Api\V1\StockTransferController;
 use App\Http\Controllers\Api\V1\SubscriptionController;
 use App\Http\Controllers\Api\V1\SubscriptionPlanController;
@@ -75,6 +77,13 @@ Route::prefix('v1')->group(function (): void {
                     Route::post('sales', [SaleController::class, 'store']);
                     Route::get('sales', [SaleController::class, 'index']);
                     Route::get('sales/{sale:uuid}', [SaleController::class, 'show']);
+                    Route::get('sales/{sale:uuid}/returnable', [SalesReturnController::class, 'returnableForSale']);
+
+                    Route::get('customers', [CustomerController::class, 'index']);
+                    Route::get('customers/{customer:uuid}', [CustomerController::class, 'show']);
+
+                    Route::get('sales-returns', [SalesReturnController::class, 'index']);
+                    Route::get('sales-returns/{salesReturn:uuid}', [SalesReturnController::class, 'show']);
 
                     Route::get('sync/pull', [SyncController::class, 'pull']);
 
@@ -108,6 +117,12 @@ Route::prefix('v1')->group(function (): void {
                         Route::delete('locations/{location}', [LocationController::class, 'destroy']);
 
                         Route::post('stock-transfers', [StockTransferController::class, 'store']);
+
+                        Route::post('customers', [CustomerController::class, 'store']);
+                        Route::patch('customers/{customer:uuid}', [CustomerController::class, 'update']);
+                        Route::delete('customers/{customer:uuid}', [CustomerController::class, 'destroy']);
+
+                        Route::post('sales/{sale:uuid}/returns', [SalesReturnController::class, 'store']);
 
                         Route::get('suppliers', [SupplierApiController::class, 'index']);
                         Route::post('purchases', [PurchaseController::class, 'store']);

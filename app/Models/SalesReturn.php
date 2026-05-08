@@ -6,33 +6,29 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Sale extends Model
+class SalesReturn extends Model
 {
+    protected $table = 'sales_returns';
+
     protected $fillable = [
         'business_id',
+        'sale_id',
         'location_id',
         'user_id',
         'customer_id',
         'uuid',
-        'receipt_no',
-        'status',
-        'subtotal',
-        'tax_total',
-        'discount_total',
-        'grand_total',
-        'idempotency_key',
+        'reason',
+        'refund_total',
+        'refund_method',
         'version',
-        'sold_at',
+        'returned_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'subtotal' => 'decimal:2',
-            'tax_total' => 'decimal:2',
-            'discount_total' => 'decimal:2',
-            'grand_total' => 'decimal:2',
-            'sold_at' => 'datetime',
+            'refund_total' => 'decimal:2',
+            'returned_at' => 'datetime',
         ];
     }
 
@@ -46,6 +42,11 @@ class Sale extends Model
         return $this->belongsTo(Business::class);
     }
 
+    public function sale(): BelongsTo
+    {
+        return $this->belongsTo(Sale::class);
+    }
+
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class);
@@ -56,23 +57,13 @@ class Sale extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function lines(): HasMany
-    {
-        return $this->hasMany(SaleLine::class);
-    }
-
-    public function payments(): HasMany
-    {
-        return $this->hasMany(Payment::class);
-    }
-
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
     }
 
-    public function returns(): HasMany
+    public function lines(): HasMany
     {
-        return $this->hasMany(SalesReturn::class);
+        return $this->hasMany(SalesReturnLine::class);
     }
 }

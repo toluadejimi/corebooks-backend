@@ -18,9 +18,16 @@ class SaleController extends Controller
 
     public function index(Request $request, Business $business): JsonResponse
     {
-        $sales = Sale::query()
+        $query = Sale::query()
             ->where('business_id', $business->id)
-            ->with(['lines', 'payments'])
+            ->with(['lines', 'payments', 'customer:id,uuid,name,is_walk_in']);
+
+        $customerUuid = trim((string) $request->query('customer_uuid', ''));
+        if ($customerUuid !== '') {
+            $query->whereHas('customer', fn ($q) => $q->where('uuid', $customerUuid));
+        }
+
+        $sales = $query
             ->orderByDesc('sold_at')
             ->paginate($request->integer('per_page', 30));
 
@@ -31,7 +38,7 @@ class SaleController extends Controller
     {
         abort_if($sale->business_id !== $business->id, 404);
 
-        $sale->load(['lines.product', 'payments']);
+        $sale->load(['lines.product', 'payments', 'customer']);
 
         return response()->json(['data' => $this->saleResponse($sale)]);
     }
@@ -40,6 +47,7 @@ class SaleController extends Controller
     {
         $data = $request->validate([
             'location_uuid' => ['required', 'uuid'],
+            'customer_uuid' => ['nullable', 'uuid'],
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.product_uuid' => ['required', 'uuid'],
             'lines.*.qty' => ['required', 'numeric', 'min:0.001'],
@@ -63,6 +71,7 @@ class SaleController extends Controller
                 $data['payments'],
                 $data['idempotency_key'] ?? null,
                 (float) ($data['discount_total'] ?? 0),
+                $data['customer_uuid'] ?? null,
             );
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
@@ -76,12 +85,19 @@ class SaleController extends Controller
         return [
             'uuid' => $sale->uuid,
             'receipt_no' => $sale->receipt_no,
+            'status' => $sale->status,
             'subtotal' => (float) $sale->subtotal,
             'tax_total' => (float) $sale->tax_total,
             'discount_total' => (float) $sale->discount_total,
             'grand_total' => (float) $sale->grand_total,
             'sold_at' => $sale->sold_at?->toIso8601String(),
+            'customer' => $sale->customer ? [
+                'uuid' => $sale->customer->uuid,
+                'name' => $sale->customer->name,
+                'is_walk_in' => (bool) $sale->customer->is_walk_in,
+            ] : null,
             'lines' => $sale->lines->map(fn ($l) => [
+                'sale_line_id' => $l->id,
                 'product_uuid' => $l->product->uuid,
                 'qty' => (float) $l->qty,
                 'unit_price' => (float) $l->unit_price,
