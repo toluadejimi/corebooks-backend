@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\Customer;
 use App\Models\Sale;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -63,20 +64,23 @@ class CustomerController extends Controller
         return response()->json(['data' => $this->summary($customer->fresh())], 201);
     }
 
-    public function show(Request $request, Business $business, Customer $customer): JsonResponse
+    public function show(Request $request, Business $business, string $customer): JsonResponse
     {
-        abort_if($customer->business_id !== $business->id, 404);
+        $model = $this->findForBusiness($business, $customer);
+        if ($model === null) {
+            return response()->json(['message' => 'Customer not found in this workspace.'], 404);
+        }
 
         $sales = Sale::query()
             ->where('business_id', $business->id)
-            ->where('customer_id', $customer->id)
+            ->where('customer_id', $model->id)
             ->with(['lines.product:id,uuid,name'])
             ->orderByDesc('sold_at')
             ->limit(50)
             ->get();
 
         return response()->json([
-            'data' => $this->summary($customer->loadCount('sales')),
+            'data' => $this->summary($model->loadCount('sales')),
             'recent_sales' => $sales->map(fn (Sale $s) => [
                 'uuid' => $s->uuid,
                 'receipt_no' => $s->receipt_no,
@@ -88,9 +92,12 @@ class CustomerController extends Controller
         ]);
     }
 
-    public function update(Request $request, Business $business, Customer $customer): JsonResponse
+    public function update(Request $request, Business $business, string $customer): JsonResponse
     {
-        abort_if($customer->business_id !== $business->id, 404);
+        $model = $this->findForBusiness($business, $customer);
+        if ($model === null) {
+            return response()->json(['message' => 'Customer not found in this workspace.'], 404);
+        }
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:160'],
@@ -99,27 +106,44 @@ class CustomerController extends Controller
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $customer->fill([
+        $model->fill([
             'name' => trim($data['name']),
             'phone' => $data['phone'] ?? null,
             'email' => $data['email'] ?? null,
             'notes' => $data['notes'] ?? null,
-            'version' => $customer->version + 1,
+            'version' => $model->version + 1,
         ])->save();
 
-        return response()->json(['data' => $this->summary($customer->fresh())]);
+        return response()->json(['data' => $this->summary($model->fresh())]);
     }
 
-    public function destroy(Business $business, Customer $customer): JsonResponse
+    public function destroy(Business $business, string $customer): JsonResponse
     {
-        abort_if($customer->business_id !== $business->id, 404);
-        if ($customer->is_walk_in) {
+        $model = $this->findForBusiness($business, $customer);
+        if ($model === null) {
+            return response()->json(['message' => 'Customer not found in this workspace.'], 404);
+        }
+        if ($model->is_walk_in) {
             return response()->json(['message' => 'The Walk-in customer cannot be deleted.'], 422);
         }
 
-        $customer->delete();
+        $model->delete();
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Strictly scope by parent business — never expose a customer from another workspace.
+     */
+    private function findForBusiness(Business $business, string $customerUuid): ?Customer
+    {
+        try {
+            return $business->customers()
+                ->where('uuid', $customerUuid)
+                ->firstOrFail();
+        } catch (ModelNotFoundException) {
+            return null;
+        }
     }
 
     private function ensureWalkIn(Business $business): void

@@ -7,6 +7,7 @@ use App\Models\Business;
 use App\Models\Sale;
 use App\Models\SalesReturn;
 use App\Services\SalesReturnService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
@@ -31,21 +32,27 @@ class SalesReturnController extends Controller
         return response()->json($page);
     }
 
-    public function show(Business $business, SalesReturn $salesReturn): JsonResponse
+    public function show(Business $business, string $salesReturn): JsonResponse
     {
-        abort_if($salesReturn->business_id !== $business->id, 404);
-        $salesReturn->load(['sale:id,uuid,receipt_no', 'customer:id,uuid,name', 'lines.product:id,uuid,name']);
+        $model = $this->findReturnForBusiness($business, $salesReturn);
+        if ($model === null) {
+            return response()->json(['message' => 'Return not found in this workspace.'], 404);
+        }
+        $model->load(['sale:id,uuid,receipt_no', 'customer:id,uuid,name', 'lines.product:id,uuid,name']);
 
-        return response()->json(['data' => $this->summary($salesReturn)]);
+        return response()->json(['data' => $this->summary($model)]);
     }
 
-    public function returnableForSale(Business $business, Sale $sale): JsonResponse
+    public function returnableForSale(Business $business, string $sale): JsonResponse
     {
-        abort_if($sale->business_id !== $business->id, 404);
-        $sale->load(['lines.product:id,uuid,name', 'returns.lines']);
+        $saleModel = $this->findSaleForBusiness($business, $sale);
+        if ($saleModel === null) {
+            return response()->json(['message' => 'Sale not found in this workspace.'], 404);
+        }
+        $saleModel->load(['lines.product:id,uuid,name', 'returns.lines']);
 
         $alreadyByLine = [];
-        foreach ($sale->returns as $r) {
+        foreach ($saleModel->returns as $r) {
             foreach ($r->lines as $rl) {
                 $alreadyByLine[$rl->sale_line_id] = ($alreadyByLine[$rl->sale_line_id] ?? 0) + (float) $rl->qty;
             }
@@ -53,17 +60,16 @@ class SalesReturnController extends Controller
 
         return response()->json([
             'data' => [
-                'uuid' => $sale->uuid,
-                'receipt_no' => $sale->receipt_no,
-                'status' => $sale->status,
-                'sold_at' => $sale->sold_at?->toIso8601String(),
-                'grand_total' => (float) $sale->grand_total,
-                'lines' => $sale->lines->map(function ($l) use ($alreadyByLine) {
+                'uuid' => $saleModel->uuid,
+                'receipt_no' => $saleModel->receipt_no,
+                'status' => $saleModel->status,
+                'sold_at' => $saleModel->sold_at?->toIso8601String(),
+                'grand_total' => (float) $saleModel->grand_total,
+                'lines' => $saleModel->lines->map(function ($l) use ($alreadyByLine) {
                     $returned = (float) ($alreadyByLine[$l->id] ?? 0);
                     $remaining = round((float) $l->qty - $returned, 3);
 
                     return [
-                        'uuid' => $l->uuid ?? null, // legacy: sale_lines may not have uuid
                         'sale_line_id' => $l->id,
                         'product_uuid' => $l->product?->uuid,
                         'product_name' => $l->product?->name,
@@ -78,9 +84,12 @@ class SalesReturnController extends Controller
         ]);
     }
 
-    public function store(Request $request, Business $business, Sale $sale): JsonResponse
+    public function store(Request $request, Business $business, string $sale): JsonResponse
     {
-        abort_if($sale->business_id !== $business->id, 404);
+        $saleModel = $this->findSaleForBusiness($business, $sale);
+        if ($saleModel === null) {
+            return response()->json(['message' => 'Sale not found in this workspace.'], 404);
+        }
 
         $data = $request->validate([
             'reason' => ['nullable', 'string', 'max:500'],
@@ -94,7 +103,7 @@ class SalesReturnController extends Controller
         try {
             $return = $this->service->process(
                 $business,
-                $sale,
+                $saleModel,
                 (int) $request->user()->id,
                 $data['lines'],
                 $data['reason'] ?? null,
@@ -105,6 +114,27 @@ class SalesReturnController extends Controller
         }
 
         return response()->json(['data' => $this->summary($return->load(['sale:id,uuid,receipt_no', 'customer:id,uuid,name', 'lines.product:id,uuid,name']))], 201);
+    }
+
+    private function findSaleForBusiness(Business $business, string $saleUuid): ?Sale
+    {
+        try {
+            return $business->sales()->where('uuid', $saleUuid)->firstOrFail();
+        } catch (ModelNotFoundException) {
+            return null;
+        }
+    }
+
+    private function findReturnForBusiness(Business $business, string $returnUuid): ?SalesReturn
+    {
+        try {
+            return SalesReturn::query()
+                ->where('business_id', $business->id)
+                ->where('uuid', $returnUuid)
+                ->firstOrFail();
+        } catch (ModelNotFoundException) {
+            return null;
+        }
     }
 
     private function summary(SalesReturn $r): array
