@@ -26,7 +26,9 @@
             <strong>{{ $po->status }}</strong>
         </div>
     </div>
-    <p style="margin:1rem 0 0;font-size:0.8rem;color:var(--adm-muted);">UUID: {{ $po->uuid }}</p>
+    <p style="margin:1rem 0 0;font-size:0.8rem;color:var(--adm-muted);">
+        <strong>Purchase UUID</strong> (this is the ID in <code>/purchases/…</code> URLs): <code style="user-select:all;">{{ $po->uuid }}</code>
+    </p>
 </div>
 
 <h2 class="adm-page-title" style="font-size:1.05rem;margin-bottom:0.5rem;">Lines received</h2>
@@ -39,7 +41,7 @@
                 <th>Unit cost</th>
                 <th style="text-align:right;">Line total</th>
                 <th>Expiry</th>
-                <th style="color:var(--adm-muted);">New batch</th>
+                <th style="color:var(--adm-muted);max-width:10rem;">Stock batch UUID <span style="font-weight:400;">(≠ purchase URL)</span></th>
             </tr>
         </thead>
         <tbody>
