@@ -35,7 +35,7 @@
                     <td>{{ $o->lines_count }}</td>
                     <td><strong>{{ $currencySymbol }}{{ number_format((float) $o->total, 2) }}</strong></td>
                     <td><span class="adm-role-pill" style="font-size:0.65rem;">{{ $o->status }}</span></td>
-                    <td><a href="{{ route('admin.b.purchases.show', [$business, $o]) }}" class="adm-btn adm-btn-ghost" style="padding:0.35rem 0.65rem;font-size:0.8rem;">View</a></td>
+                    <td><a href="{{ route('admin.b.purchases.show', [$business, $o->uuid]) }}" class="adm-btn adm-btn-ghost" style="padding:0.35rem 0.65rem;font-size:0.8rem;">View</a></td>
                 </tr>
             @empty
                 <tr><td colspan="7" style="color:var(--adm-muted);">No purchases yet.@if($canManage) Use “Record purchase” to receive stock from a supplier.@endif</td></tr>

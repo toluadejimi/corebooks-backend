@@ -51,4 +51,21 @@ class PurchaseOrder extends Model
     {
         return $this->hasMany(PurchaseOrderLine::class);
     }
+
+    /**
+     * Scope purchase detail URLs to the workspace in the path (admin/b/{business}/purchases/…).
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        $field ??= $this->getRouteKeyName();
+        $business = request()->route('business');
+        if ($business instanceof Business) {
+            return static::query()
+                ->where($field, $value)
+                ->where('business_id', $business->id)
+                ->firstOrFail();
+        }
+
+        return static::query()->where($field, $value)->firstOrFail();
+    }
 }

@@ -131,7 +131,7 @@ class PurchaseWebController extends Controller
         }
 
         return redirect()
-            ->route('admin.b.purchases.show', [$business, $po])
+            ->route('admin.b.purchases.show', [$business, $po->uuid])
             ->with('status', 'Purchase received and stock updated.');
     }
 
