@@ -42,8 +42,8 @@
                     <td>{{ number_format((float) ($p->batches_sum_qty ?? 0), 2) }}</td>
                     @if($canManage)
                         <td class="adm-actions">
-                            <a href="{{ route('admin.b.products.edit', [$business, $p]) }}" class="adm-btn adm-btn-ghost" style="padding:0.35rem 0.65rem;font-size:0.8rem;">Edit</a>
-                            <form action="{{ route('admin.b.products.destroy', [$business, $p]) }}" method="post" style="display:inline;" onsubmit="return confirm('Delete this product?');">
+                            <a href="{{ route('admin.b.products.edit', [$business, $p->uuid]) }}" class="adm-btn adm-btn-ghost" style="padding:0.35rem 0.65rem;font-size:0.8rem;">Edit</a>
+                            <form action="{{ route('admin.b.products.destroy', [$business, $p->uuid]) }}" method="post" style="display:inline;" onsubmit="return confirm('Delete this product?');">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="adm-btn adm-btn-danger" style="padding:0.35rem 0.65rem;font-size:0.8rem;">Delete</button>
                             </form>

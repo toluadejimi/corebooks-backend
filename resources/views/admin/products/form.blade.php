@@ -22,7 +22,7 @@
 @endif
 
 <div class="adm-card" style="max-width:640px;">
-    <form method="post" action="{{ $editing ? route('admin.b.products.update', [$business, $product]) : route('admin.b.products.store', $business) }}">
+    <form method="post" action="{{ $editing ? route('admin.b.products.update', [$business, $product->uuid]) : route('admin.b.products.store', $business) }}">
         @csrf
         @if($editing) @method('PUT') @endif
         <div class="adm-field">

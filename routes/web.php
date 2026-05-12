@@ -139,6 +139,8 @@ Route::middleware('auth')->group(function (): void {
             Route::middleware('business.role:manager')->group(function (): void {
                 Route::get('/products/create', [ProductWebController::class, 'create'])->name('products.create');
                 Route::post('/products', [ProductWebController::class, 'store'])->name('products.store');
+                // Same path as destroy (DELETE); browsers that follow with GET (reload, some redirects) need this.
+                Route::get('/products/{product:uuid}', [ProductWebController::class, 'redirectToEdit'])->name('products.show');
                 Route::get('/products/{product:uuid}/edit', [ProductWebController::class, 'edit'])->name('products.edit');
                 Route::put('/products/{product:uuid}', [ProductWebController::class, 'update'])->name('products.update');
                 Route::delete('/products/{product:uuid}', [ProductWebController::class, 'destroy'])->name('products.destroy');

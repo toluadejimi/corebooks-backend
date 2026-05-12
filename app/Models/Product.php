@@ -45,6 +45,23 @@ class Product extends Model
         return 'uuid';
     }
 
+    /**
+     * Resolve catalog product URLs within the workspace segment (admin/b/{business}/products/…).
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        $field ??= $this->getRouteKeyName();
+        $business = request()->route('business');
+        if ($business instanceof Business) {
+            return static::query()
+                ->where($field, $value)
+                ->where('business_id', $business->id)
+                ->firstOrFail();
+        }
+
+        return static::query()->where($field, $value)->firstOrFail();
+    }
+
     public function business(): BelongsTo
     {
         return $this->belongsTo(Business::class);

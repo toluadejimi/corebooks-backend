@@ -106,6 +106,16 @@ class ProductWebController extends Controller
             ->with('status', 'Product created.');
     }
 
+    /**
+     * GET /products/{uuid} — canonical edit URL uses /edit; this avoids 404 when the bare URL is opened or GET-followed.
+     */
+    public function redirectToEdit(Request $request, Business $business, Product $product): RedirectResponse
+    {
+        abort_if($product->business_id !== $business->id, 404);
+
+        return redirect()->route('admin.b.products.edit', [$business, $product->uuid]);
+    }
+
     public function edit(Request $request, Business $business, Product $product): View
     {
         abort_if($product->business_id !== $business->id, 404);
