@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Business;
 use App\Models\Customer;
+use App\Models\CustomerCreditEntry;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductBatch;
@@ -124,22 +125,69 @@ class SaleCheckoutService
             ]);
 
             $paymentSum = 0.0;
+            $creditTotal = 0.0;
+            $creditPaymentRecords = [];
             foreach ($payments as $p) {
                 $amount = (float) $p['amount'];
+                $method = $p['method'];
                 $paymentSum += $amount;
-                Payment::query()->create([
+                if ($method === 'credit') {
+                    $creditTotal += $amount;
+                }
+                $payment = Payment::query()->create([
                     'business_id' => $business->id,
                     'sale_id' => $sale->id,
                     'uuid' => (string) Str::uuid(),
-                    'method' => $p['method'],
+                    'method' => $method,
                     'amount' => $amount,
                     'meta' => $p['meta'] ?? null,
                 ]);
+                if ($method === 'credit') {
+                    $creditPaymentRecords[] = $payment;
+                }
             }
 
             // Compare with a small tolerance: client + JSON float rounding can drift vs PHP accumulators.
             if (abs(round($paymentSum, 2) - $grandTotal) > 0.02) {
                 throw new InvalidArgumentException('Payment total must match grand total.');
+            }
+
+            if ($creditTotal > 0) {
+                if ($customer === null || $customer->is_walk_in) {
+                    throw new InvalidArgumentException('Pick a saved customer (not Walk-in) to sell on credit.');
+                }
+                if (! $customer->credit_enabled) {
+                    throw new InvalidArgumentException('Credit is not enabled for this customer.');
+                }
+                $locked = Customer::query()->whereKey($customer->id)->lockForUpdate()->first();
+                $newBalance = round((float) $locked->credit_balance + $creditTotal, 2);
+                $limit = (float) $locked->credit_limit;
+                if ($limit > 0 && $newBalance > round($limit + 0.0001, 2)) {
+                    throw new InvalidArgumentException(
+                        'Credit limit reached. Outstanding will become '.number_format($newBalance, 2)
+                        .' but the limit is '.number_format($limit, 2).'.'
+                    );
+                }
+                $locked->credit_balance = $newBalance;
+                $locked->save();
+
+                foreach ($creditPaymentRecords as $payment) {
+                    CustomerCreditEntry::query()->create([
+                        'business_id' => $business->id,
+                        'customer_id' => $locked->id,
+                        'sale_id' => $sale->id,
+                        'payment_id' => $payment->id,
+                        'user_id' => $userId,
+                        'uuid' => (string) Str::uuid(),
+                        'type' => 'charge',
+                        'method' => 'credit',
+                        'amount' => (float) $payment->amount,
+                        'balance_after' => $locked->credit_balance,
+                        'reference' => $sale->receipt_no,
+                        'notes' => 'Sale on credit',
+                        'occurred_at' => now(),
+                    ]);
+                }
             }
 
             $sale = $sale->fresh(['lines.product', 'payments', 'customer']);

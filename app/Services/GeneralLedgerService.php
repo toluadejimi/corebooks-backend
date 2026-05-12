@@ -23,6 +23,8 @@ final class GeneralLedgerService
 
     public const CODE_BANK = '1020';
 
+    public const CODE_AR = '1030';
+
     public const CODE_VAT_PAYABLE = '2010';
 
     public const CODE_PAYROLL_WITHHOLDINGS = '2030';
@@ -35,13 +37,10 @@ final class GeneralLedgerService
 
     public function ensureDefaultChart(Business $business): void
     {
-        if (GlAccount::query()->where('business_id', $business->id)->exists()) {
-            return;
-        }
-
         $rows = [
             [self::CODE_CASH, 'Cash on hand', 'asset', 10],
             [self::CODE_BANK, 'Bank deposits', 'asset', 20],
+            [self::CODE_AR, 'Accounts receivable', 'asset', 25],
             [self::CODE_VAT_PAYABLE, 'VAT payable', 'liability', 30],
             [self::CODE_PAYROLL_WITHHOLDINGS, 'Payroll withholdings payable', 'liability', 40],
             [self::CODE_SALES, 'Sales revenue', 'revenue', 50],
@@ -51,6 +50,13 @@ final class GeneralLedgerService
 
         DB::transaction(function () use ($business, $rows): void {
             foreach ($rows as [$code, $name, $type, $sort]) {
+                $exists = GlAccount::query()
+                    ->where('business_id', $business->id)
+                    ->where('code', $code)
+                    ->exists();
+                if ($exists) {
+                    continue;
+                }
                 GlAccount::query()->create([
                     'business_id' => $business->id,
                     'uuid' => (string) Str::uuid(),
@@ -131,10 +137,13 @@ final class GeneralLedgerService
 
         $cash = 0.0;
         $bank = 0.0;
+        $credit = 0.0;
         foreach ($sale->payments as $p) {
             $a = (float) $p->amount;
             if ($p->method === 'cash') {
                 $cash += $a;
+            } elseif ($p->method === 'credit') {
+                $credit += $a;
             } else {
                 $bank += $a;
             }
@@ -148,10 +157,11 @@ final class GeneralLedgerService
 
         $aCash = $this->account($business, self::CODE_CASH);
         $aBank = $this->account($business, self::CODE_BANK);
+        $aAr = $this->account($business, self::CODE_AR);
         $aSales = $this->account($business, self::CODE_SALES);
         $aVat = $this->account($business, self::CODE_VAT_PAYABLE);
 
-        DB::transaction(function () use ($business, $sale, $key, $cash, $bank, $netSales, $tax, $grand, $aCash, $aBank, $aSales, $aVat): void {
+        DB::transaction(function () use ($business, $sale, $key, $cash, $bank, $credit, $netSales, $tax, $grand, $aCash, $aBank, $aAr, $aSales, $aVat): void {
             $entry = JournalEntry::query()->create([
                 'business_id' => $business->id,
                 'uuid' => (string) Str::uuid(),
@@ -170,6 +180,9 @@ final class GeneralLedgerService
             if ($bank > 0) {
                 $lines[] = ['gl_account_id' => $aBank->id, 'debit' => $bank, 'credit' => 0, 'description' => 'Card / transfer takings'];
             }
+            if ($credit > 0) {
+                $lines[] = ['gl_account_id' => $aAr->id, 'debit' => $credit, 'credit' => 0, 'description' => 'On credit (Accounts receivable)'];
+            }
             $lines[] = ['gl_account_id' => $aSales->id, 'debit' => 0, 'credit' => $netSales, 'description' => 'Sales (ex VAT, net of discount)'];
             if ($tax > 0) {
                 $lines[] = ['gl_account_id' => $aVat->id, 'debit' => 0, 'credit' => $tax, 'description' => 'Output VAT'];
@@ -178,6 +191,52 @@ final class GeneralLedgerService
             $this->insertLines($entry, $lines);
             $this->assertBalanced($entry);
             $this->assertAmountMatches($grand, $entry);
+        });
+    }
+
+    /**
+     * Customer payment against outstanding credit balance.
+     * Dr cash/bank, Cr Accounts receivable.
+     */
+    public function postCustomerCreditPayment(
+        Business $business,
+        \App\Models\CustomerCreditEntry $entry,
+    ): void {
+        $this->ensureDefaultChart($business);
+
+        $key = 'customer_credit_payment:'.$entry->uuid;
+        if (JournalEntry::query()->where('business_id', $business->id)->where('idempotency_key', $key)->exists()) {
+            return;
+        }
+
+        $amount = (float) $entry->amount;
+        if ($amount <= 0) {
+            return;
+        }
+
+        $debitAccount = match ($entry->method) {
+            'cash' => $this->account($business, self::CODE_CASH),
+            default => $this->account($business, self::CODE_BANK),
+        };
+        $aAr = $this->account($business, self::CODE_AR);
+
+        DB::transaction(function () use ($business, $entry, $key, $amount, $debitAccount, $aAr): void {
+            $journal = JournalEntry::query()->create([
+                'business_id' => $business->id,
+                'uuid' => (string) Str::uuid(),
+                'entry_date' => $entry->occurred_at?->toDateString() ?? now()->toDateString(),
+                'posted_at' => now(),
+                'memo' => 'Customer credit payment '.$entry->uuid,
+                'source_type' => 'customer_credit_payment',
+                'source_uuid' => $entry->uuid,
+                'idempotency_key' => $key,
+            ]);
+
+            $this->insertLines($journal, [
+                ['gl_account_id' => $debitAccount->id, 'debit' => $amount, 'credit' => 0, 'description' => 'Customer payment received ('.$entry->method.')'],
+                ['gl_account_id' => $aAr->id, 'debit' => 0, 'credit' => $amount, 'description' => 'Reduce Accounts receivable'],
+            ]);
+            $this->assertBalanced($journal);
         });
     }
 

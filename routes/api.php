@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\BusinessController;
 use App\Http\Controllers\Api\V1\BusinessTokenController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CustomerController;
+use App\Http\Controllers\Api\V1\CustomerCreditController;
 use App\Http\Controllers\Api\V1\ExpenseApiController;
 use App\Http\Controllers\Api\V1\BankAccountController;
 use App\Http\Controllers\Api\V1\BankTransactionController;
@@ -81,6 +82,7 @@ Route::prefix('v1')->group(function (): void {
 
                     Route::get('customers', [CustomerController::class, 'index']);
                     Route::get('customers/{customer:uuid}', [CustomerController::class, 'show']);
+                    Route::get('customers/{customer:uuid}/credit-entries', [CustomerCreditController::class, 'entries']);
 
                     Route::get('sales-returns', [SalesReturnController::class, 'index']);
                     Route::get('sales-returns/{salesReturn:uuid}', [SalesReturnController::class, 'show']);
@@ -121,6 +123,7 @@ Route::prefix('v1')->group(function (): void {
                         Route::post('customers', [CustomerController::class, 'store']);
                         Route::patch('customers/{customer:uuid}', [CustomerController::class, 'update']);
                         Route::delete('customers/{customer:uuid}', [CustomerController::class, 'destroy']);
+                        Route::post('customers/{customer:uuid}/credit-payments', [CustomerCreditController::class, 'recordPayment']);
 
                         Route::post('sales/{sale:uuid}/returns', [SalesReturnController::class, 'store']);
 

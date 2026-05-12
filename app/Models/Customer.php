@@ -16,6 +16,9 @@ class Customer extends Model
         'email',
         'notes',
         'is_walk_in',
+        'credit_enabled',
+        'credit_limit',
+        'credit_balance',
         'version',
     ];
 
@@ -23,6 +26,9 @@ class Customer extends Model
     {
         return [
             'is_walk_in' => 'boolean',
+            'credit_enabled' => 'boolean',
+            'credit_limit' => 'decimal:2',
+            'credit_balance' => 'decimal:2',
         ];
     }
 
@@ -44,5 +50,10 @@ class Customer extends Model
     public function returns(): HasMany
     {
         return $this->hasMany(SalesReturn::class);
+    }
+
+    public function creditEntries(): HasMany
+    {
+        return $this->hasMany(CustomerCreditEntry::class);
     }
 }

@@ -55,7 +55,7 @@ class SaleController extends Controller
             'lines.*.tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'lines.*.batch_uuid' => ['nullable', 'uuid'],
             'payments' => ['required', 'array', 'min:1'],
-            'payments.*.method' => ['required', 'string', 'in:cash,transfer,pos'],
+            'payments.*.method' => ['required', 'string', 'in:cash,transfer,pos,credit'],
             'payments.*.amount' => ['required', 'numeric', 'min:0'],
             'payments.*.meta' => ['nullable', 'array'],
             'discount_total' => ['nullable', 'numeric', 'min:0'],

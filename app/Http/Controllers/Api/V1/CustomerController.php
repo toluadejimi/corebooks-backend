@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\Customer;
+use App\Models\CustomerCreditEntry;
 use App\Models\Sale;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -48,6 +49,8 @@ class CustomerController extends Controller
             'phone' => ['nullable', 'string', 'max:32'],
             'email' => ['nullable', 'email', 'max:160'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'credit_enabled' => ['nullable', 'boolean'],
+            'credit_limit' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $customer = Customer::query()->create([
@@ -58,6 +61,9 @@ class CustomerController extends Controller
             'email' => $data['email'] ?? null,
             'notes' => $data['notes'] ?? null,
             'is_walk_in' => false,
+            'credit_enabled' => (bool) ($data['credit_enabled'] ?? false),
+            'credit_limit' => round((float) ($data['credit_limit'] ?? 0), 2),
+            'credit_balance' => 0,
             'version' => 1,
         ]);
 
@@ -79,6 +85,14 @@ class CustomerController extends Controller
             ->limit(50)
             ->get();
 
+        $creditEntries = CustomerCreditEntry::query()
+            ->where('business_id', $business->id)
+            ->where('customer_id', $model->id)
+            ->with(['sale:id,uuid,receipt_no'])
+            ->orderByDesc('occurred_at')
+            ->limit(20)
+            ->get();
+
         return response()->json([
             'data' => $this->summary($model->loadCount('sales')),
             'recent_sales' => $sales->map(fn (Sale $s) => [
@@ -88,6 +102,20 @@ class CustomerController extends Controller
                 'grand_total' => (float) $s->grand_total,
                 'sold_at' => $s->sold_at?->toIso8601String(),
                 'item_count' => $s->lines->count(),
+            ]),
+            'recent_credit_entries' => $creditEntries->map(fn (CustomerCreditEntry $e) => [
+                'uuid' => $e->uuid,
+                'type' => $e->type,
+                'method' => $e->method,
+                'amount' => (float) $e->amount,
+                'balance_after' => (float) $e->balance_after,
+                'reference' => $e->reference,
+                'notes' => $e->notes,
+                'occurred_at' => $e->occurred_at?->toIso8601String(),
+                'sale' => $e->sale ? [
+                    'uuid' => $e->sale->uuid,
+                    'receipt_no' => $e->sale->receipt_no,
+                ] : null,
             ]),
         ]);
     }
@@ -104,15 +132,38 @@ class CustomerController extends Controller
             'phone' => ['nullable', 'string', 'max:32'],
             'email' => ['nullable', 'email', 'max:160'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'credit_enabled' => ['nullable', 'boolean'],
+            'credit_limit' => ['nullable', 'numeric', 'min:0'],
         ]);
 
-        $model->fill([
+        if ($model->is_walk_in && (
+            ($data['credit_enabled'] ?? false) === true
+            || ((float) ($data['credit_limit'] ?? 0)) > 0
+        )) {
+            return response()->json(['message' => 'The Walk-in customer cannot use credit.'], 422);
+        }
+
+        $update = [
             'name' => trim($data['name']),
             'phone' => $data['phone'] ?? null,
             'email' => $data['email'] ?? null,
             'notes' => $data['notes'] ?? null,
             'version' => $model->version + 1,
-        ])->save();
+        ];
+        if (array_key_exists('credit_enabled', $data)) {
+            $update['credit_enabled'] = (bool) $data['credit_enabled'];
+        }
+        if (array_key_exists('credit_limit', $data)) {
+            $newLimit = round((float) $data['credit_limit'], 2);
+            if ($newLimit > 0 && $newLimit < (float) $model->credit_balance) {
+                return response()->json([
+                    'message' => 'New credit limit ('.number_format($newLimit, 2).') is below the customer\'s outstanding balance ('.number_format((float) $model->credit_balance, 2).').',
+                ], 422);
+            }
+            $update['credit_limit'] = $newLimit;
+        }
+
+        $model->fill($update)->save();
 
         return response()->json(['data' => $this->summary($model->fresh())]);
     }
@@ -166,6 +217,10 @@ class CustomerController extends Controller
 
     private function summary(Customer $c): array
     {
+        $limit = (float) $c->credit_limit;
+        $balance = (float) $c->credit_balance;
+        $available = $limit > 0 ? round(max(0, $limit - $balance), 2) : 0.0;
+
         return [
             'uuid' => $c->uuid,
             'name' => $c->name,
@@ -173,6 +228,10 @@ class CustomerController extends Controller
             'email' => $c->email,
             'notes' => $c->notes,
             'is_walk_in' => (bool) $c->is_walk_in,
+            'credit_enabled' => (bool) $c->credit_enabled,
+            'credit_limit' => $limit,
+            'credit_balance' => $balance,
+            'credit_available' => $available,
             'sales_count' => (int) ($c->sales_count ?? 0),
             'sales_total' => (float) ($c->sales_total ?? 0),
         ];

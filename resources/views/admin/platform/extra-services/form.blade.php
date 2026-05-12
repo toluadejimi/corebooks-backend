@@ -23,6 +23,12 @@
             <textarea class="adm-input" id="description" name="description" rows="5">{{ old('description', $service->description) }}</textarea>
         </div>
         <div class="adm-field">
+            <label class="adm-label" for="requirements">Requirements (optional)</label>
+            <textarea class="adm-input" id="requirements" name="requirements" rows="8" placeholder="Documents and info needed:&#10;- CAC certificate&#10;- Director's valid ID&#10;- Utility bill not older than 3 months">{{ old('requirements', $service->requirements) }}</textarea>
+            <p class="adm-page-desc" style="margin-top:0.35rem;">Shown in the mobile app on a tappable <strong>Requirements</strong> link below each service. One bullet per line; lines starting with <code>-</code>, <code>*</code> or <code>•</code> render as bullets, blank lines become spacers.</p>
+            @error('requirements')<p style="color:var(--adm-danger);font-size:0.85rem;margin-top:0.35rem;">{{ $message }}</p>@enderror
+        </div>
+        <div class="adm-field">
             <label class="adm-label" for="icon_url">Icon / logo URL (optional)</label>
             <input class="adm-input" id="icon_url" name="icon_url" type="text" maxlength="2048" placeholder="https://…" value="{{ old('icon_url', $service->icon_url) }}">
             <p class="adm-page-desc" style="margin-top:0.35rem;">Square PNG or SVG over HTTPS. Shown in the mobile add-ons list; if empty, a default icon is used.</p>
