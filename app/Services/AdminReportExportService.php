@@ -159,6 +159,7 @@ class AdminReportExportService
         $locId = $this->locationId($request, $business);
         $daily = $this->reporting->dailySummary($business, $dailyDate, $locId);
         $stockVal = $this->reporting->stockValuation($business, $locId);
+        $inv = $this->reporting->inventoryAvailabilityTotals($business, $locId);
         $sym = $this->sym($business);
 
         $headers = ['Metric', 'Value'];
@@ -171,6 +172,10 @@ class AdminReportExportService
             ['Units sold', number_format($daily['items_sold'], 2)],
             ['Avg order value', $sym.number_format($daily['avg_order_value'], 2)],
             ['Stock valuation (cost)', $sym.number_format($stockVal, 2)],
+            ['SKUs in stock (on hand)', (string) $inv['products_with_stock']],
+            ['Units on hand', number_format($inv['units_on_hand'], 2)],
+            ['Inventory cost value (est.)', $sym.number_format($inv['cost_value_estimate'], 2)],
+            ['Inventory retail value (list)', $sym.number_format($inv['retail_value_estimate'], 2)],
         ];
         $subtitle = $business->name.' · '.$dailyDate;
 
@@ -313,7 +318,9 @@ class AdminReportExportService
     protected function exportProducts(Request $request, Business $business, string $format): BinaryFileResponse
     {
         [$from, $to] = $this->reporting->resolveRange($request->query('from'), $request->query('to'));
-        $products = $this->reporting->productPerformance($business, $from, $to, $this->locationId($request, $business));
+        $locId = $this->locationId($request, $business);
+        $products = $this->reporting->productPerformance($business, $from, $to, $locId);
+        $inv = $this->reporting->inventoryAvailabilityTotals($business, $locId);
         $sym = $this->sym($business);
 
         $headers = ['Product', 'Units sold', 'Revenue', 'COGS (est.)', 'Margin (est.)'];
@@ -331,10 +338,41 @@ class AdminReportExportService
         $fname = 'products-'.$from->toDateString().'_to_'.$to->toDateString();
 
         if ($format === 'pdf') {
-            return $this->pdfDownload($this->tablePdf('Product performance', $subtitle, $headers, $rows, [1 => true, 2 => true, 3 => true, 4 => true]), $fname.'.pdf');
+            $invHeaders = ['Metric', 'Value'];
+            $invRows = [
+                ['SKUs in stock', (string) $inv['products_with_stock']],
+                ['Units on hand', number_format($inv['units_on_hand'], 2)],
+                ['Cost value (est.)', $sym.number_format($inv['cost_value_estimate'], 2)],
+                ['Retail value (list)', $sym.number_format($inv['retail_value_estimate'], 2)],
+            ];
+            $cogsNote = 'COGS uses batch cost when present; values far above the line unit sell price are capped at that price for reporting.';
+
+            $html = View::make('admin.reports.export.products-pdf', [
+                'subtitle' => $subtitle,
+                'invHeaders' => $invHeaders,
+                'invRows' => $invRows,
+                'invNumericCols' => [1 => true],
+                'perfHeaders' => $headers,
+                'perfRows' => $rows,
+                'perfNumericCols' => [1 => true, 2 => true, 3 => true, 4 => true],
+                'cogsNote' => $cogsNote,
+            ])->render();
+
+            return $this->pdfDownload($html, $fname.'.pdf');
         }
 
-        $lines = [$headers];
+        $lines = [
+            ['Current inventory (on hand)'],
+            ['Metric', 'Value'],
+            ['SKUs in stock', $inv['products_with_stock']],
+            ['Units on hand', $inv['units_on_hand']],
+            ['Cost value (est.)', $inv['cost_value_estimate']],
+            ['Retail value (list)', $inv['retail_value_estimate']],
+            [''],
+            ['Product performance', $from->toDateString().' → '.$to->toDateString()],
+            [''],
+            $headers,
+        ];
         foreach ($products as $p) {
             $lines[] = [$p['name'], $p['units_sold'], $p['revenue'], $p['cogs_estimate'], $p['margin_estimate']];
         }

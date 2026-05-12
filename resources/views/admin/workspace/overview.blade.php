@@ -16,7 +16,7 @@
         <div class="adm-stat-lbl">Units in stock</div>
     </div>
     <div class="adm-stat">
-        <div class="adm-stat-val">₦{{ number_format($stockValue, 0) }}</div>
+        <div class="adm-stat-val">{{ $currencySymbol }}{{ number_format($stockValue, 0) }}</div>
         <div class="adm-stat-lbl">Stock value (cost)</div>
     </div>
     <div class="adm-stat">

@@ -345,6 +345,22 @@
                 <div class="rep-kpi-lbl">Stock valuation (cost)</div>
             </div>
             <div class="rep-kpi">
+                <div class="rep-kpi-val">{{ number_format($inventoryAvailability['products_with_stock'] ?? 0) }}</div>
+                <div class="rep-kpi-lbl">SKUs in stock</div>
+            </div>
+            <div class="rep-kpi">
+                <div class="rep-kpi-val">{{ number_format($inventoryAvailability['units_on_hand'] ?? 0, 2) }}</div>
+                <div class="rep-kpi-lbl">Units on hand</div>
+            </div>
+            <div class="rep-kpi">
+                <div class="rep-kpi-val">{{ $fmt($inventoryAvailability['cost_value_estimate'] ?? 0) }}</div>
+                <div class="rep-kpi-lbl">Inventory cost (est.)</div>
+            </div>
+            <div class="rep-kpi">
+                <div class="rep-kpi-val">{{ $fmt($inventoryAvailability['retail_value_estimate'] ?? 0) }}</div>
+                <div class="rep-kpi-lbl">Inventory retail (list)</div>
+            </div>
+            <div class="rep-kpi">
                 <div class="rep-kpi-val">{{ $fmt($expenseReport['total']) }}</div>
                 <div class="rep-kpi-lbl">Expenses (range)</div>
             </div>
