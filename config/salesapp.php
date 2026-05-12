@@ -18,6 +18,13 @@ return [
     'allow_web_migrations' => filter_var(env('SALESAPP_ALLOW_WEB_MIGRATIONS', true), FILTER_VALIDATE_BOOLEAN),
 
     /*
+    | When true, platform admins may clear route/config/application caches from the portfolio
+    | (php artisan route:clear, config:clear, cache:clear). For shared hosting without SSH.
+    | Set SALESAPP_ALLOW_WEB_CACHE_CLEAR=false to disable.
+    */
+    'allow_web_cache_clear' => filter_var(env('SALESAPP_ALLOW_WEB_CACHE_CLEAR', true), FILTER_VALIDATE_BOOLEAN),
+
+    /*
     | Shown in the mobile app when Paystack is not configured (offline / manual payment).
     */
     'offline_payment_instructions' => (string) env(

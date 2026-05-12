@@ -28,7 +28,22 @@
                     <button type="submit" class="adm-btn adm-btn-ghost" style="border:1px dashed var(--adm-border);">Run migrations</button>
                 </form>
             @endif
+            @if (config('salesapp.allow_web_cache_clear', true))
+                <form method="post" action="{{ route('admin.platform.caches.clear') }}" style="display:inline;margin:0;" onsubmit="return confirm('Clear route, config, and application caches? Use after uploading code on shared hosting. Continue?');">
+                    @csrf
+                    <button type="submit" class="adm-btn adm-btn-ghost" style="border:1px dashed var(--adm-border);">Clear Laravel caches</button>
+                </form>
+            @endif
         </div>
+        @if ($errors->has('cache_clear'))
+            <p style="margin-top:0.75rem;color:#b91c1c;font-size:0.9rem;">{{ $errors->first('cache_clear') }}</p>
+        @endif
+        @if (session('cache_clear_log'))
+            <details style="margin-top:1rem;" open>
+                <summary style="cursor:pointer;color:var(--adm-muted);font-size:0.9rem;">Cache clear output</summary>
+                <pre style="margin:0.75rem 0 0;padding:1rem;background:var(--adm-bg);border:1px solid var(--adm-border);border-radius:var(--radius, 14px);font-size:0.78rem;overflow:auto;max-height:22rem;white-space:pre-wrap;">{{ session('cache_clear_log') }}</pre>
+            </details>
+        @endif
         @if (session('migration_log'))
             <details style="margin-top:1rem;" open>
                 <summary style="cursor:pointer;color:var(--adm-muted);font-size:0.9rem;">Migration output</summary>

@@ -77,6 +77,10 @@ Route::middleware('auth')->group(function (): void {
             ->middleware('throttle:8,1')
             ->name('migrations.run');
 
+        Route::post('clear-caches', [PlatformMaintenanceWebController::class, 'clearCaches'])
+            ->middleware('throttle:8,1')
+            ->name('caches.clear');
+
         Route::get('business-subscriptions', [BusinessSubscriptionPlatformWebController::class, 'index'])->name('business-subscriptions.index');
         Route::get('business-subscriptions/{business}/edit', [BusinessSubscriptionPlatformWebController::class, 'edit'])->name('business-subscriptions.edit');
         Route::put('business-subscriptions/{business}', [BusinessSubscriptionPlatformWebController::class, 'update'])->name('business-subscriptions.update');
@@ -158,9 +162,11 @@ Route::middleware('auth')->group(function (): void {
             Route::post('/purchases', [PurchaseWebController::class, 'store'])
                 ->middleware('business.role:manager')
                 ->name('purchases.store');
-            // Use {purchaseOrder} not {purchaseOrder:uuid}: the ":uuid" suffix triggers parent
-            // $business->purchaseOrders() scoped binding; model resolveRouteBinding already scopes by business.
-            Route::get('/purchases/{purchaseOrder}', [PurchaseWebController::class, 'show'])->name('purchases.show');
+            // Plain string UUID + manual resolve: supports /purchases/{purchase_order_uuid} and redirects
+            // when someone opens /purchases/{product_batch_uuid} (common bookmark mix-up).
+            Route::get('/purchases/{purchaseUuid}', [PurchaseWebController::class, 'show'])
+                ->whereUuid('purchaseUuid')
+                ->name('purchases.show');
 
             Route::get('/sales', [SalesWebController::class, 'index'])->name('sales.index');
             Route::get('/sales/{sale}', [SalesWebController::class, 'show'])->name('sales.show');

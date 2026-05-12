@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Web\Admin\Concerns\ResolvesWorkspace;
 use App\Models\Business;
 use App\Models\Product;
+use App\Models\ProductBatch;
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderLine;
 use App\Models\Supplier;
 use App\Services\PurchaseReceiveService;
 use Illuminate\Http\RedirectResponse;
@@ -135,9 +137,31 @@ class PurchaseWebController extends Controller
             ->with('status', 'Purchase received and stock updated.');
     }
 
-    public function show(Request $request, Business $business, PurchaseOrder $purchaseOrder): View
+    public function show(Request $request, Business $business, string $purchaseUuid): View|RedirectResponse
     {
-        abort_if($purchaseOrder->business_id !== $business->id, 404);
+        $purchaseOrder = PurchaseOrder::query()
+            ->where('business_id', $business->id)
+            ->where('uuid', $purchaseUuid)
+            ->first();
+
+        if ($purchaseOrder === null) {
+            $batch = ProductBatch::query()
+                ->where('business_id', $business->id)
+                ->where('uuid', $purchaseUuid)
+                ->first();
+            if ($batch !== null) {
+                $line = PurchaseOrderLine::query()
+                    ->where('product_batch_id', $batch->id)
+                    ->whereHas('purchaseOrder', static fn ($q) => $q->where('business_id', $business->id))
+                    ->with('purchaseOrder')
+                    ->first();
+                if ($line?->purchaseOrder !== null) {
+                    return redirect()->route('admin.b.purchases.show', [$business, $line->purchaseOrder->uuid]);
+                }
+            }
+
+            abort(404);
+        }
 
         $purchaseOrder->load([
             'lines.product',
