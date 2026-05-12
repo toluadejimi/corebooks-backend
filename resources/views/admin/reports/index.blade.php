@@ -458,11 +458,39 @@
             <a class="adm-btn adm-btn-ghost" href="{{ $exportHref('products', 'xlsx') }}">Excel</a>
         </div>
         <div class="rep-glass-card">
+            <h2 class="rep-section-title"><span class="dot"></span> Current inventory (on hand)</h2>
+            <p class="rep-muted" style="margin:-0.5rem 0 1rem;font-size:0.85rem;line-height:1.45;">
+                Totals from batches with quantity &gt; 0{{ ($scopeAllLocations ?? true) ? ' (all branches)' : ' (selected branch)' }}.
+                Cost uses batch snapshot or catalog cost; values absurdly above list price are capped for reporting (same as stock valuation).
+            </p>
+            <div class="rep-kpi-grid">
+                <div class="rep-kpi">
+                    <div class="rep-kpi-label">SKUs in stock</div>
+                    <div class="rep-kpi-val">{{ number_format($inventoryAvailability['products_with_stock'] ?? 0) }}</div>
+                </div>
+                <div class="rep-kpi">
+                    <div class="rep-kpi-label">Units on hand</div>
+                    <div class="rep-kpi-val">{{ number_format($inventoryAvailability['units_on_hand'] ?? 0, 2) }}</div>
+                </div>
+                <div class="rep-kpi">
+                    <div class="rep-kpi-label">Cost value (est.)</div>
+                    <div class="rep-kpi-val">{{ $fmt($inventoryAvailability['cost_value_estimate'] ?? 0) }}</div>
+                </div>
+                <div class="rep-kpi">
+                    <div class="rep-kpi-label">Retail value (list)</div>
+                    <div class="rep-kpi-val">{{ $fmt($inventoryAvailability['retail_value_estimate'] ?? 0) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="rep-glass-card">
             <h2 class="rep-section-title"><span class="dot"></span> Top products by revenue</h2>
             <div class="rep-chart-wrap tall"><canvas id="chartProducts"></canvas></div>
         </div>
         <div class="rep-glass-card">
             <h2 class="rep-section-title"><span class="dot"></span> Product performance</h2>
+            <p class="rep-muted" style="margin:-0.5rem 0 1rem;font-size:0.85rem;line-height:1.45;">
+                COGS uses the batch cost from the sale line when present. If that cost is far above the line&rsquo;s unit sell price (likely a data-entry mistake), it is capped at the sell price for this report so margins stay realistic.
+            </p>
             <div class="rep-table-wrap">
                 <table class="adm-table">
                     <thead>

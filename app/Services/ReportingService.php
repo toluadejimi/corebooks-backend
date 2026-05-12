@@ -8,6 +8,7 @@ use App\Models\Expense;
 use App\Models\Location;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Models\ProductBatch;
 use App\Models\Sale;
 use App\Models\SaleLine;
 use Carbon\Carbon;
@@ -18,6 +19,36 @@ use Illuminate\Support\Facades\DB;
 class ReportingService
 {
     public const MAX_RANGE_DAYS = 366;
+
+    /**
+     * If stored unit cost exceeds this multiple of the reference sell price, treat it as bad data
+     * (e.g. purchase line total entered as unit cost) and cap cost at the sell price for reporting.
+     */
+    private const COGS_COST_VS_SELL_RATIO_CEIL = 15;
+
+    /**
+     * SQL fragment: unit cost for COGS on a joined sale line (uses batch snapshot, else catalog cost).
+     */
+    private function cogsEffectiveUnitCostSql(): string
+    {
+        $m = self::COGS_COST_VS_SELL_RATIO_CEIL;
+        $raw = 'COALESCE(NULLIF(product_batches.cost_price_snapshot, 0), products.cost_price)';
+        $sell = 'sale_lines.unit_price';
+
+        return "(CASE WHEN {$sell} > 0 AND ({$raw}) > ({$sell} * {$m}) THEN LEAST(({$raw}), {$sell}) ELSE ({$raw}) END)";
+    }
+
+    /**
+     * SQL fragment: unit cost for on-hand inventory (joined product_batches + products).
+     */
+    private function inventoryEffectiveUnitCostSql(): string
+    {
+        $m = self::COGS_COST_VS_SELL_RATIO_CEIL;
+        $raw = 'COALESCE(NULLIF(product_batches.cost_price_snapshot, 0), products.cost_price)';
+        $list = 'products.selling_price';
+
+        return "(CASE WHEN {$list} > 0 AND ({$raw}) > ({$list} * {$m}) THEN LEAST(({$raw}), {$list}) ELSE ({$raw}) END)";
+    }
 
     public function resolveRange(?string $from, ?string $to): array
     {
@@ -94,6 +125,8 @@ class ReportingService
     /**
      * COGS estimate: Σ (qty × unit cost). Prefers the batch's cost_price_snapshot from when stock was
      * received (sale_lines.product_batch_id), then falls back to the product's current catalog cost.
+     * If a snapshot is absurdly higher than the line's pre-tax unit sell price (likely data entry error),
+     * it is capped at that sell price so P&amp;L and product tables stay usable.
      * Using only catalog cost made historical P&amp;L swing when someone later edits product.cost_price.
      *
      * @return array{period: array{from: string, to: string}, revenue: float, tax_collected: float, discounts: float, cogs_estimate: float, gross_profit: float, expenses: float, net_profit: float, orders: int}
@@ -107,7 +140,7 @@ class ReportingService
             ->selectRaw('COUNT(*) as orders, COALESCE(SUM(grand_total),0) as revenue, COALESCE(SUM(tax_total),0) as tax_total, COALESCE(SUM(discount_total),0) as discount_total')
             ->first();
 
-        $unitCostSql = 'COALESCE(product_batches.cost_price_snapshot, products.cost_price)';
+        $unitCostSql = $this->cogsEffectiveUnitCostSql();
 
         $cogs = (float) SaleLine::query()
             ->join('sales', 'sales.id', '=', 'sale_lines.sale_id')
@@ -152,7 +185,7 @@ class ReportingService
      */
     public function productPerformance(Business $business, Carbon $from, Carbon $to, ?int $locationId = null): Collection
     {
-        $unitCostSql = 'COALESCE(product_batches.cost_price_snapshot, products.cost_price)';
+        $unitCostSql = $this->cogsEffectiveUnitCostSql();
 
         $rows = SaleLine::query()
             ->join('sales', 'sales.id', '=', 'sale_lines.sale_id')
@@ -192,7 +225,7 @@ class ReportingService
      */
     public function profitLossCogsBreakdown(Business $business, Carbon $from, Carbon $to, ?int $locationId = null): Collection
     {
-        $unitCostSql = 'COALESCE(product_batches.cost_price_snapshot, products.cost_price)';
+        $unitCostSql = $this->cogsEffectiveUnitCostSql();
 
         $rows = SaleLine::query()
             ->join('sales', 'sales.id', '=', 'sale_lines.sale_id')
@@ -272,16 +305,16 @@ class ReportingService
         ];
     }
 
-    /** Stock valuation (current cost × batch qty). */
     /**
      * Estimated value of on-hand inventory at cost: Σ (batch qty × unit cost).
      * Uses each batch’s {@see ProductBatch::$cost_price_snapshot} when set (from purchase/receipt),
      * otherwise the product’s current catalog {@see Product::$cost_price}.
      * Previously only catalog cost was used, so one high catalog price inflated every batch for that SKU.
+     * Snapshots absurdly above catalog list price are capped (same rule as COGS on sale lines).
      */
     public function stockValuation(Business $business, ?int $locationId = null): float
     {
-        $unitCostSql = 'COALESCE(product_batches.cost_price_snapshot, products.cost_price)';
+        $unitCostSql = $this->inventoryEffectiveUnitCostSql();
 
         $v = Product::query()
             ->where('products.business_id', $business->id)
@@ -291,6 +324,41 @@ class ReportingService
             ->value('v');
 
         return (float) ($v ?? 0);
+    }
+
+    /**
+     * Current availability across products with positive batch qty (optionally one branch).
+     *
+     * @return array{
+     *     products_with_stock: int,
+     *     units_on_hand: float,
+     *     cost_value_estimate: float,
+     *     retail_value_estimate: float
+     * }
+     */
+    public function inventoryAvailabilityTotals(Business $business, ?int $locationId = null): array
+    {
+        $unit = $this->inventoryEffectiveUnitCostSql();
+
+        $row = ProductBatch::query()
+            ->join('products', 'products.id', '=', 'product_batches.product_id')
+            ->where('products.business_id', $business->id)
+            ->where('product_batches.qty', '>', 0)
+            ->when($locationId !== null, fn ($q) => $q->where('product_batches.location_id', $locationId))
+            ->selectRaw(
+                'COUNT(DISTINCT products.id) as skus, '.
+                'COALESCE(SUM(product_batches.qty), 0) as units, '.
+                'COALESCE(SUM(product_batches.qty * '.$unit.'), 0) as cost_val, '.
+                'COALESCE(SUM(product_batches.qty * products.selling_price), 0) as retail_val'
+            )
+            ->first();
+
+        return [
+            'products_with_stock' => (int) ($row?->skus ?? 0),
+            'units_on_hand' => round((float) ($row?->units ?? 0), 3),
+            'cost_value_estimate' => round((float) ($row?->cost_val ?? 0), 2),
+            'retail_value_estimate' => round((float) ($row?->retail_val ?? 0), 2),
+        ];
     }
 
     /**

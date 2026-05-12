@@ -90,6 +90,7 @@ class ReportController extends Controller
         return response()->json([
             'weekly_sales' => $this->reporting->weeklyRevenue($business, 7, $loc)->values(),
             'stock_value_estimate' => $this->reporting->stockValuation($business, $loc),
+            'inventory_availability' => $this->reporting->inventoryAvailabilityTotals($business, $loc),
             'top_products' => $this->reporting->topProductsByUnits($business, $from, 5, $loc)->values(),
         ]);
     }
