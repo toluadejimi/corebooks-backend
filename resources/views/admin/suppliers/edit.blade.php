@@ -7,7 +7,7 @@
 
 <h1 class="adm-page-title">Edit supplier</h1>
 
-<form method="post" action="{{ route('admin.b.suppliers.update', [$business, $supplier]) }}" class="adm-card" style="max-width:480px;">
+<form method="post" action="{{ route('admin.b.suppliers.update', [$business, $supplier->uuid]) }}" class="adm-card" style="max-width:480px;">
     @csrf @method('PUT')
     <div class="adm-field" style="margin-bottom:1rem;">
         <label class="adm-label" for="name">Name</label>
@@ -17,7 +17,10 @@
         <label class="adm-label" for="phone">Phone (optional)</label>
         <input class="adm-input" id="phone" name="phone" value="{{ old('phone', $supplier->phone) }}" maxlength="32">
     </div>
-    <p class="adm-page-desc" style="margin-bottom:1rem;">Ledger balance on file: <strong>{{ number_format((float) $supplier->balance, 2) }}</strong> (read-only here).</p>
+    <p class="adm-page-desc" style="margin-bottom:1rem;">
+        Sum of purchase receipts: <strong>{{ $currencySymbol }}{{ number_format($receiptsTotal, 2) }}</strong>
+        · Ledger balance on file: <strong>{{ $currencySymbol }}{{ number_format((float) $supplier->balance, 2) }}</strong>
+    </p>
     <button type="submit" class="adm-btn adm-btn-primary">Save changes</button>
 </form>
 @endsection

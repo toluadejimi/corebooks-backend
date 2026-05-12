@@ -110,6 +110,11 @@ class PurchaseReceiveService
                 $product->save();
             }
 
+            $ledgerSupplier = Supplier::query()->whereKey($supplier->id)->lockForUpdate()->firstOrFail();
+            $ledgerSupplier->balance = round((float) $ledgerSupplier->balance + (float) $po->total, 2);
+            $ledgerSupplier->version = (int) $ledgerSupplier->version + 1;
+            $ledgerSupplier->save();
+
             return $po->fresh(['lines.product', 'supplier', 'location']);
         });
     }

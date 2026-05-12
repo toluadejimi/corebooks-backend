@@ -20,11 +20,21 @@ class SupplierWebController extends Controller
         $suppliers = Supplier::query()
             ->where('business_id', $business->id)
             ->withCount('purchaseOrders')
+            ->withSum('purchaseOrders as purchase_orders_total', 'total')
             ->orderBy('name')
             ->get();
 
+        $currencySymbol = match (strtoupper((string) ($business->currency ?? 'NGN'))) {
+            'NGN' => '₦',
+            'USD' => '$',
+            'GBP' => '£',
+            'EUR' => '€',
+            default => ($business->currency ?? '¤').' ',
+        };
+
         return view('admin.suppliers.index', $this->workspace($request, $business) + [
             'suppliers' => $suppliers,
+            'currencySymbol' => $currencySymbol,
         ]);
     }
 
@@ -58,8 +68,20 @@ class SupplierWebController extends Controller
     {
         abort_if($supplier->business_id !== $business->id, 404);
 
+        $currencySymbol = match (strtoupper((string) ($business->currency ?? 'NGN'))) {
+            'NGN' => '₦',
+            'USD' => '$',
+            'GBP' => '£',
+            'EUR' => '€',
+            default => ($business->currency ?? '¤').' ',
+        };
+
+        $receiptsTotal = (float) $supplier->purchaseOrders()->sum('total');
+
         return view('admin.suppliers.edit', $this->workspace($request, $business) + [
             'supplier' => $supplier,
+            'currencySymbol' => $currencySymbol,
+            'receiptsTotal' => $receiptsTotal,
         ]);
     }
 

@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property-read float|null $purchase_orders_total
+ */
 class Supplier extends Model
 {
     protected $fillable = [
@@ -37,5 +40,23 @@ class Supplier extends Model
     public function purchaseOrders(): HasMany
     {
         return $this->hasMany(PurchaseOrder::class);
+    }
+
+    /**
+     * Resolve admin URLs like /admin/b/{business}/suppliers/{supplier}/edit to this workspace only.
+     * (Avoids 404 when the same UUID exists elsewhere or binding resolves the wrong row.)
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        $field ??= $this->getRouteKeyName();
+        $business = request()->route('business');
+        if ($business instanceof Business) {
+            return static::query()
+                ->where($field, $value)
+                ->where('business_id', $business->id)
+                ->firstOrFail();
+        }
+
+        return static::query()->where($field, $value)->firstOrFail();
     }
 }
