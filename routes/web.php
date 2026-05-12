@@ -169,9 +169,11 @@ Route::middleware('auth')->group(function (): void {
             Route::middleware('business.role:manager')->group(function (): void {
                 Route::get('/suppliers/create', [SupplierWebController::class, 'create'])->name('suppliers.create');
                 Route::post('/suppliers', [SupplierWebController::class, 'store'])->name('suppliers.store');
-                Route::get('/suppliers/{supplier:uuid}/edit', [SupplierWebController::class, 'edit'])->name('suppliers.edit');
-                Route::put('/suppliers/{supplier:uuid}', [SupplierWebController::class, 'update'])->name('suppliers.update');
-                Route::delete('/suppliers/{supplier:uuid}', [SupplierWebController::class, 'destroy'])->name('suppliers.destroy');
+                // {supplier} not {supplier:uuid}: ":uuid" forces parent $business->suppliers() child binding;
+                // Supplier::resolveRouteBinding() already scopes by workspace.
+                Route::get('/suppliers/{supplier}/edit', [SupplierWebController::class, 'edit'])->name('suppliers.edit');
+                Route::put('/suppliers/{supplier}', [SupplierWebController::class, 'update'])->name('suppliers.update');
+                Route::delete('/suppliers/{supplier}', [SupplierWebController::class, 'destroy'])->name('suppliers.destroy');
             });
 
             Route::get('/team', [TeamWebController::class, 'index'])->name('team.index');
