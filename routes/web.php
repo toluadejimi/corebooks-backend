@@ -158,7 +158,9 @@ Route::middleware('auth')->group(function (): void {
             Route::post('/purchases', [PurchaseWebController::class, 'store'])
                 ->middleware('business.role:manager')
                 ->name('purchases.store');
-            Route::get('/purchases/{purchaseOrder:uuid}', [PurchaseWebController::class, 'show'])->name('purchases.show');
+            // Use {purchaseOrder} not {purchaseOrder:uuid}: the ":uuid" suffix triggers parent
+            // $business->purchaseOrders() scoped binding; model resolveRouteBinding already scopes by business.
+            Route::get('/purchases/{purchaseOrder}', [PurchaseWebController::class, 'show'])->name('purchases.show');
 
             Route::get('/sales', [SalesWebController::class, 'index'])->name('sales.index');
             Route::get('/sales/{sale}', [SalesWebController::class, 'show'])->name('sales.show');
