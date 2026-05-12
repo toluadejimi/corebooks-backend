@@ -15,8 +15,10 @@ use App\Http\Controllers\Web\Admin\PortfolioController;
 use App\Http\Controllers\Web\Admin\ProductWebController;
 use App\Http\Controllers\Web\Admin\PurchaseWebController;
 use App\Http\Controllers\Web\Admin\ReportsWebController;
+use App\Http\Controllers\Web\Admin\SalesWebController;
 use App\Http\Controllers\Web\Admin\StockWebController;
 use App\Http\Controllers\Web\Admin\SubscriptionPlanWebController;
+use App\Http\Controllers\Web\Admin\SupplierWebController;
 use App\Http\Controllers\Web\Admin\TokenSettingsWebController;
 use App\Http\Controllers\Web\Admin\TeamWebController;
 use App\Http\Controllers\Web\Admin\WorkspaceController;
@@ -155,6 +157,18 @@ Route::middleware('auth')->group(function (): void {
                 ->middleware('business.role:manager')
                 ->name('purchases.store');
             Route::get('/purchases/{purchaseOrder}', [PurchaseWebController::class, 'show'])->name('purchases.show');
+
+            Route::get('/sales', [SalesWebController::class, 'index'])->name('sales.index');
+            Route::get('/sales/{sale}', [SalesWebController::class, 'show'])->name('sales.show');
+
+            Route::get('/suppliers', [SupplierWebController::class, 'index'])->name('suppliers.index');
+            Route::middleware('business.role:manager')->group(function (): void {
+                Route::get('/suppliers/create', [SupplierWebController::class, 'create'])->name('suppliers.create');
+                Route::post('/suppliers', [SupplierWebController::class, 'store'])->name('suppliers.store');
+                Route::get('/suppliers/{supplier}/edit', [SupplierWebController::class, 'edit'])->name('suppliers.edit');
+                Route::put('/suppliers/{supplier}', [SupplierWebController::class, 'update'])->name('suppliers.update');
+                Route::delete('/suppliers/{supplier}', [SupplierWebController::class, 'destroy'])->name('suppliers.destroy');
+            });
 
             Route::get('/team', [TeamWebController::class, 'index'])->name('team.index');
             Route::middleware('business.role:manager')->group(function (): void {

@@ -9,6 +9,7 @@
 @if($canManage)
     <div class="adm-actions" style="margin-bottom:1rem;">
         <a href="{{ route('admin.b.purchases.create', $business) }}" class="adm-btn adm-btn-primary">+ Record purchase</a>
+        <a href="{{ route('admin.b.suppliers.index', $business) }}" class="adm-btn adm-btn-ghost">Suppliers</a>
     </div>
 @endif
 

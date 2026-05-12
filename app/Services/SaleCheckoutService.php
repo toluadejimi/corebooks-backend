@@ -11,6 +11,7 @@ use App\Models\ProductBatch;
 use App\Models\Sale;
 use App\Models\SaleLine;
 use App\Models\StockMovement;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -30,8 +31,9 @@ class SaleCheckoutService
         ?string $idempotencyKey,
         float $discountTotal = 0,
         ?string $customerUuid = null,
+        ?string $soldAtDate = null,
     ): Sale {
-        return DB::transaction(function () use ($business, $userId, $locationUuid, $lines, $payments, $idempotencyKey, $discountTotal, $customerUuid) {
+        return DB::transaction(function () use ($business, $userId, $locationUuid, $lines, $payments, $idempotencyKey, $discountTotal, $customerUuid, $soldAtDate) {
             if ($idempotencyKey) {
                 $existing = Sale::query()
                     ->where('business_id', $business->id)
@@ -45,6 +47,10 @@ class SaleCheckoutService
             $location = $business->locations()->where('uuid', $locationUuid)->firstOrFail();
             $customer = $this->resolveCustomer($business, $customerUuid);
 
+            $soldAt = $soldAtDate !== null && $soldAtDate !== ''
+                ? Carbon::createFromFormat('Y-m-d', $soldAtDate, config('app.timezone'))->startOfDay()
+                : now();
+
             $sale = Sale::query()->create([
                 'business_id' => $business->id,
                 'location_id' => $location->id,
@@ -56,7 +62,7 @@ class SaleCheckoutService
                 'idempotency_key' => $idempotencyKey,
                 'discount_total' => $discountTotal,
                 'version' => 1,
-                'sold_at' => now(),
+                'sold_at' => $soldAt,
             ]);
 
             $subtotal = 0.0;
@@ -185,7 +191,7 @@ class SaleCheckoutService
                         'balance_after' => $locked->credit_balance,
                         'reference' => $sale->receipt_no,
                         'notes' => 'Sale on credit',
-                        'occurred_at' => now(),
+                        'occurred_at' => $soldAt,
                     ]);
                 }
             }

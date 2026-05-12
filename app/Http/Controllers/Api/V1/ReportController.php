@@ -140,6 +140,7 @@ class ReportController extends Controller
                 'to' => $to->toDateString(),
             ],
             'products' => $this->reporting->productPerformance($business, $from, $to, $loc)->values(),
+            'inventory_availability' => $this->reporting->inventoryAvailabilityTotals($business, $loc),
         ]);
     }
 

@@ -60,6 +60,8 @@ class SaleController extends Controller
             'payments.*.meta' => ['nullable', 'array'],
             'discount_total' => ['nullable', 'numeric', 'min:0'],
             'idempotency_key' => ['nullable', 'string', 'max:64'],
+            /** Calendar day of sale (POS backdating). Omitted = server time now. */
+            'sold_at' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:2020-01-01', 'before_or_equal:today'],
         ]);
 
         try {
@@ -72,6 +74,7 @@ class SaleController extends Controller
                 $data['idempotency_key'] ?? null,
                 (float) ($data['discount_total'] ?? 0),
                 $data['customer_uuid'] ?? null,
+                $data['sold_at'] ?? null,
             );
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);

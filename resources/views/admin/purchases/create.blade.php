@@ -35,6 +35,9 @@
                         <option value="{{ $s->uuid }}" @selected(old('supplier_uuid') === $s->uuid)>{{ $s->name }}@if($s->phone) · {{ $s->phone }}@endif</option>
                     @endforeach
                 </select>
+                @if($canManage ?? false)
+                    <p style="margin:0.35rem 0 0;font-size:0.8rem;"><a href="{{ route('admin.b.suppliers.index', $business) }}">Manage suppliers →</a></p>
+                @endif
             </div>
         </div>
         <div class="adm-grid cols-2">

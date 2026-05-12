@@ -53,6 +53,7 @@
                     <th>Source</th>
                     <th>Memo</th>
                     <th>Lines</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -68,9 +69,16 @@
                                 @endforeach
                             </ul>
                         </td>
+                        <td style="white-space:nowrap;">
+                            @if($e->source_type === 'sale' && $e->source_uuid)
+                                <a href="{{ route('admin.b.sales.show', [$business, $e->source_uuid]) }}" class="adm-btn adm-btn-ghost" style="padding:0.35rem 0.65rem;font-size:0.8rem;">View sale</a>
+                            @else
+                                <span style="color:var(--adm-muted);font-size:0.8rem;">—</span>
+                            @endif
+                        </td>
                     </tr>
                 @empty
-                    <tr><td colspan="4" style="color:var(--adm-muted);">No journal entries yet. Record a sale, expense, or finalise payroll to generate postings.</td></tr>
+                    <tr><td colspan="5" style="color:var(--adm-muted);">No journal entries yet. Record a sale, expense, or finalise payroll to generate postings.</td></tr>
                 @endforelse
             </tbody>
         </table>

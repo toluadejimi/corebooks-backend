@@ -141,6 +141,7 @@ class PurchaseWebController extends Controller
 
         $purchaseOrder->load([
             'lines.product',
+            'lines.productBatch',
             'supplier',
             'location',
         ]);

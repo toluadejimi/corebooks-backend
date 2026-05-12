@@ -48,6 +48,12 @@
                 <a href="{{ route('admin.b.purchases.index', $business) }}" class="{{ request()->routeIs('admin.b.purchases.*') ? 'active' : '' }}">
                     <span class="adm-nav-icon">⎘</span> Purchases
                 </a>
+                <a href="{{ route('admin.b.suppliers.index', $business) }}" class="{{ request()->routeIs('admin.b.suppliers.*') ? 'active' : '' }}">
+                    <span class="adm-nav-icon">☷</span> Suppliers
+                </a>
+                <a href="{{ route('admin.b.sales.index', $business) }}" class="{{ request()->routeIs('admin.b.sales.*') ? 'active' : '' }}">
+                    <span class="adm-nav-icon">▸</span> Sales
+                </a>
                 <a href="{{ route('admin.b.team.index', $business) }}" class="{{ request()->routeIs('admin.b.team.*') ? 'active' : '' }}">
                     <span class="adm-nav-icon">◎</span> Team
                     @unless($canManage)<span style="font-size:0.65rem;opacity:0.7;">view</span>@endunless
