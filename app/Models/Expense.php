@@ -10,6 +10,7 @@ class Expense extends Model
     protected $fillable = [
         'business_id',
         'location_id',
+        'gl_account_id',
         'uuid',
         'category',
         'amount',
@@ -34,5 +35,11 @@ class Expense extends Model
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class);
+    }
+
+    /** Cash/bank account that funded this expense. */
+    public function glAccount(): BelongsTo
+    {
+        return $this->belongsTo(GlAccount::class);
     }
 }

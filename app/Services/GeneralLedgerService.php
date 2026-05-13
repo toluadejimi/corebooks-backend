@@ -250,9 +250,24 @@ final class GeneralLedgerService
 
         $amount = (float) $expense->amount;
         $opex = $this->account($business, self::CODE_OPEX);
-        $cash = $this->account($business, self::CODE_CASH);
 
-        DB::transaction(function () use ($business, $expense, $key, $amount, $opex, $cash): void {
+        // Credit the account the business paid from. When the expense pre-dates
+        // the account-picker feature (or none was selected), default to cash.
+        $fundAccount = null;
+        if ($expense->gl_account_id !== null) {
+            $fundAccount = GlAccount::query()
+                ->where('business_id', $business->id)
+                ->where('id', $expense->gl_account_id)
+                ->first();
+        }
+        if ($fundAccount === null) {
+            $fundAccount = $this->account($business, self::CODE_CASH);
+        }
+        $fundLabel = $fundAccount->name !== ''
+            ? 'Paid from '.$fundAccount->name
+            : 'Paid from cash';
+
+        DB::transaction(function () use ($business, $expense, $key, $amount, $opex, $fundAccount, $fundLabel): void {
             $entry = JournalEntry::query()->create([
                 'business_id' => $business->id,
                 'uuid' => (string) Str::uuid(),
@@ -266,7 +281,7 @@ final class GeneralLedgerService
 
             $this->insertLines($entry, [
                 ['gl_account_id' => $opex->id, 'debit' => $amount, 'credit' => 0, 'description' => $expense->notes],
-                ['gl_account_id' => $cash->id, 'debit' => 0, 'credit' => $amount, 'description' => 'Paid from cash'],
+                ['gl_account_id' => $fundAccount->id, 'debit' => 0, 'credit' => $amount, 'description' => $fundLabel],
             ]);
             $this->assertBalanced($entry);
         });
