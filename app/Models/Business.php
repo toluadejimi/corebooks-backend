@@ -76,6 +76,13 @@ class Business extends Model
         return $this->hasMany(PurchaseOrder::class);
     }
 
+    public function shortlistedSeekers(): BelongsToMany
+    {
+        return $this->belongsToMany(JobSeeker::class, 'business_seeker_shortlists')
+            ->withTimestamps()
+            ->withPivot(['note', 'added_by_user_id']);
+    }
+
     public function payrollRuns(): HasMany
     {
         return $this->hasMany(PayrollRun::class);

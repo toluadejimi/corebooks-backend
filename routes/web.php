@@ -8,6 +8,7 @@ use App\Http\Controllers\Web\Admin\ExtraServiceApplicationPlatformWebController;
 use App\Http\Controllers\Web\Admin\ExtraServiceWebController;
 use App\Http\Controllers\Web\Admin\GeneralLedgerWebController;
 use App\Http\Controllers\Web\Admin\JobPostingPlatformWebController;
+use App\Http\Controllers\Web\Admin\JobSeekerPlatformWebController;
 use App\Http\Controllers\Web\Admin\LoanApplicationPlatformWebController;
 use App\Http\Controllers\Web\Admin\LoanPartnerBankWebController;
 use App\Http\Controllers\Web\Admin\LoanWorkspaceWebController;
@@ -128,6 +129,13 @@ Route::middleware('auth')->group(function (): void {
         Route::post('jobs/{job}/approve', [JobPostingPlatformWebController::class, 'approve'])->name('jobs.approve');
         Route::post('jobs/{job}/reject', [JobPostingPlatformWebController::class, 'reject'])->name('jobs.reject');
         Route::post('jobs/{job}/close', [JobPostingPlatformWebController::class, 'close'])->name('jobs.close');
+
+        Route::get('job-seekers', [JobSeekerPlatformWebController::class, 'index'])->name('job-seekers.index');
+        Route::get('job-seekers/create', [JobSeekerPlatformWebController::class, 'create'])->name('job-seekers.create');
+        Route::post('job-seekers', [JobSeekerPlatformWebController::class, 'store'])->name('job-seekers.store');
+        Route::get('job-seekers/{seeker}/edit', [JobSeekerPlatformWebController::class, 'edit'])->name('job-seekers.edit');
+        Route::match(['put', 'patch'], 'job-seekers/{seeker}', [JobSeekerPlatformWebController::class, 'update'])->name('job-seekers.update');
+        Route::delete('job-seekers/{seeker}', [JobSeekerPlatformWebController::class, 'destroy'])->name('job-seekers.destroy');
     });
 
     Route::prefix('admin/b/{business:uuid}')

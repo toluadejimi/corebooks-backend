@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\V1\ExtraServiceApplicationController;
 use App\Http\Controllers\Api\V1\GlAccountController;
 use App\Http\Controllers\Api\V1\GlReportController;
 use App\Http\Controllers\Api\V1\JobPostingController;
+use App\Http\Controllers\Api\V1\JobSeekerController;
 use App\Http\Controllers\Api\V1\JournalEntryController;
 use App\Http\Controllers\Api\V1\ExtraServiceController;
 use App\Http\Controllers\Api\V1\LoanApplicationController;
@@ -94,6 +95,12 @@ Route::prefix('v1')->group(function (): void {
                     Route::get('sales-returns/{salesReturn:uuid}', [SalesReturnController::class, 'show']);
 
                     Route::get('sync/pull', [SyncController::class, 'pull']);
+
+                    Route::get('job-seekers', [JobSeekerController::class, 'index']);
+                    Route::get('job-seekers/shortlist', [JobSeekerController::class, 'shortlist']);
+                    Route::get('job-seekers/{seekerUuid}', [JobSeekerController::class, 'show']);
+                    Route::post('job-seekers/{seekerUuid}/shortlist', [JobSeekerController::class, 'shortlistStore']);
+                    Route::delete('job-seekers/{seekerUuid}/shortlist', [JobSeekerController::class, 'shortlistDestroy']);
 
                     Route::get('reports/daily-sales', [ReportController::class, 'dailySales']);
                     Route::get('reports/dashboard', [ReportController::class, 'dashboard']);
