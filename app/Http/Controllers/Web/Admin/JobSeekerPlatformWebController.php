@@ -14,13 +14,13 @@ class JobSeekerPlatformWebController extends Controller
 {
     public function index(Request $request): View
     {
-        $status = (string) $request->query('status', 'all');
+        $status = (string) $request->query('status', 'pending');
         $state = (string) $request->query('state', '');
         $search = trim((string) $request->query('q', ''));
 
         $q = JobSeeker::query()->orderByDesc('created_at');
 
-        if (in_array($status, ['active', 'hidden', 'archived'], true)) {
+        if (in_array($status, ['pending', 'active', 'declined', 'hidden', 'archived'], true)) {
             $q->where('status', $status);
         }
         if ($state !== '' && in_array($state, JobSeeker::NIGERIAN_STATES, true)) {
@@ -134,6 +134,32 @@ class JobSeekerPlatformWebController extends Controller
             ->with('status', 'Seeker removed.');
     }
 
+    public function approve(Request $request, JobSeeker $seeker): RedirectResponse
+    {
+        $seeker->status = JobSeeker::STATUS_ACTIVE;
+        $seeker->rejection_reason = null;
+        $seeker->save();
+
+        return redirect()
+            ->back()
+            ->with('status', "{$seeker->full_name} approved — now visible to businesses.");
+    }
+
+    public function decline(Request $request, JobSeeker $seeker): RedirectResponse
+    {
+        $data = $request->validate([
+            'rejection_reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $seeker->status = JobSeeker::STATUS_DECLINED;
+        $seeker->rejection_reason = $data['rejection_reason'] ?? null;
+        $seeker->save();
+
+        return redirect()
+            ->back()
+            ->with('status', "{$seeker->full_name}'s application was declined.");
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -157,7 +183,7 @@ class JobSeekerPlatformWebController extends Controller
             'skills' => ['nullable', 'string', 'max:1000'],
             'education' => ['nullable', 'string', 'max:1000'],
             'linkedin_url' => ['nullable', 'url', 'max:500'],
-            'status' => ['nullable', 'string', 'in:active,hidden,archived'],
+            'status' => ['nullable', 'string', 'in:pending,active,declined,hidden,archived'],
             'photo' => ['nullable', 'file', 'image', 'mimes:jpeg,png,webp', 'max:5120'],
             'cv' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:8192'],
         ]);

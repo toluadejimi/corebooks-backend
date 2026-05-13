@@ -47,6 +47,7 @@ class ReportsWebController extends Controller
         $expenseReport = $this->reporting->expenseReport($business, $from, $to, $locationId);
         $stockValuation = $this->reporting->stockValuation($business, $locationId);
         $inventoryAvailability = $this->reporting->inventoryAvailabilityTotals($business, $locationId);
+        $customerCredit = $this->reporting->customerCreditSummary($business);
         $firs = $this->reporting->firsComplianceReport($business, $from, $to, $locationId);
 
         $ledgerTeam = strtolower((string) $request->query('ledger_team', 'all'));
@@ -92,6 +93,7 @@ class ReportsWebController extends Controller
             'expenseReport' => $expenseReport,
             'stockValuation' => $stockValuation,
             'inventoryAvailability' => $inventoryAvailability,
+            'customerCredit' => $customerCredit,
             'firs' => $firs,
             'locations' => $locations,
             'selectedLocationUuid' => $rawLoc && strtolower((string) $rawLoc) !== 'all' ? (string) $rawLoc : '',

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\BusinessRole;
 use App\Models\Business;
+use App\Models\Customer;
 use App\Models\Expense;
 use App\Models\Location;
 use App\Models\Payment;
@@ -302,6 +303,56 @@ class ReportingService
             'total' => round((float) $lines->sum('amount'), 2),
             'by_category' => $byCategory,
             'lines' => $lines,
+        ];
+    }
+
+    /**
+     * Total customer credit currently outstanding across the business (sum of positive
+     * `credit_balance`). Walk-in customers are excluded since they cannot owe by design.
+     * Includes a small top-debtors list for the UI breakdown.
+     *
+     * @return array{
+     *     total_outstanding: float,
+     *     customers_with_debt: int,
+     *     customers_at_limit: int,
+     *     total_limit: float,
+     *     top: Collection<int, array{uuid:string, name:string, balance:float, limit:float}>
+     * }
+     */
+    public function customerCreditSummary(Business $business, int $topLimit = 10): array
+    {
+        $base = Customer::query()
+            ->where('business_id', $business->id)
+            ->where('is_walk_in', false);
+
+        $totals = (clone $base)
+            ->selectRaw('
+                COALESCE(SUM(CASE WHEN credit_balance > 0 THEN credit_balance ELSE 0 END), 0) as total_outstanding,
+                COUNT(CASE WHEN credit_balance > 0 THEN 1 END) as customers_with_debt,
+                COUNT(CASE WHEN credit_enabled = 1 AND credit_limit > 0 AND credit_balance >= credit_limit THEN 1 END) as customers_at_limit,
+                COALESCE(SUM(CASE WHEN credit_enabled = 1 THEN credit_limit ELSE 0 END), 0) as total_limit
+            ')
+            ->first();
+
+        $top = (clone $base)
+            ->where('credit_balance', '>', 0)
+            ->orderByDesc('credit_balance')
+            ->limit(max(1, $topLimit))
+            ->get(['uuid', 'name', 'credit_balance', 'credit_limit'])
+            ->map(fn (Customer $c) => [
+                'uuid' => (string) $c->uuid,
+                'name' => (string) $c->name,
+                'balance' => (float) $c->credit_balance,
+                'limit' => (float) $c->credit_limit,
+            ])
+            ->values();
+
+        return [
+            'total_outstanding' => round((float) ($totals->total_outstanding ?? 0), 2),
+            'customers_with_debt' => (int) ($totals->customers_with_debt ?? 0),
+            'customers_at_limit' => (int) ($totals->customers_at_limit ?? 0),
+            'total_limit' => round((float) ($totals->total_limit ?? 0), 2),
+            'top' => $top,
         ];
     }
 

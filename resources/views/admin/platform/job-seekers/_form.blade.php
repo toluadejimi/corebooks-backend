@@ -136,7 +136,7 @@
     <div class="adm-field">
         <label class="adm-label" for="status">Visibility</label>
         <select class="adm-select" id="status" name="status">
-            @foreach (['active' => 'Active (visible on mobile)', 'hidden' => 'Hidden', 'archived' => 'Archived'] as $val => $label)
+            @foreach (['pending' => 'Pending review', 'active' => 'Approved (visible on mobile)', 'declined' => 'Declined', 'hidden' => 'Hidden', 'archived' => 'Archived'] as $val => $label)
                 <option value="{{ $val }}" @selected(old('status', $s?->status ?? 'active') === $val)>{{ $label }}</option>
             @endforeach
         </select>

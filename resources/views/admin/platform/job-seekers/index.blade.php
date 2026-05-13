@@ -14,10 +14,12 @@
 
 @php
     $tabs = [
-        'all' => ['All', array_sum($counts ?? [])],
-        'active' => ['Active', $counts['active'] ?? 0],
+        'pending' => ['Pending review', $counts['pending'] ?? 0],
+        'active' => ['Approved', $counts['active'] ?? 0],
+        'declined' => ['Declined', $counts['declined'] ?? 0],
         'hidden' => ['Hidden', $counts['hidden'] ?? 0],
         'archived' => ['Archived', $counts['archived'] ?? 0],
+        'all' => ['All', array_sum($counts ?? [])],
     ];
 @endphp
 <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
@@ -112,13 +114,33 @@
                     </td>
                     <td>
                         @php
-                            $color = ['active' => '#0a7e3e', 'hidden' => '#666', 'archived' => '#b15c00'][$s->status] ?? '#666';
+                            $color = [
+                                'pending' => '#9a3412',
+                                'active' => '#0a7e3e',
+                                'declined' => '#b91c1c',
+                                'hidden' => '#666',
+                                'archived' => '#b15c00',
+                            ][$s->status] ?? '#666';
                         @endphp
-                        <span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:999px;background:{{ $color }}1a;color:{{ $color }};font-size:0.75rem;font-weight:600;text-transform:capitalize;">
-                            {{ $s->status }}
+                        <span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:999px;background:{{ $color }}1a;color:{{ $color }};font-size:0.75rem;font-weight:600;">
+                            {{ $s->statusLabel() }}
                         </span>
+                        @if($s->submitted_via === 'public')
+                            <div style="font-size:0.7rem;color:var(--adm-muted);margin-top:2px;">Public submission</div>
+                        @endif
                     </td>
                     <td class="adm-actions">
+                        @if($s->status === 'pending')
+                            <form action="{{ route('admin.platform.job-seekers.approve', $s) }}" method="post" style="display:inline;">
+                                @csrf
+                                <button type="submit" class="adm-btn adm-btn-primary" style="padding:0.3rem 0.6rem;font-size:0.8rem;">Approve</button>
+                            </form>
+                            <form action="{{ route('admin.platform.job-seekers.decline', $s) }}" method="post" style="display:inline;" onsubmit="this.querySelector('input[name=rejection_reason]').value = prompt('Decline reason (optional, shown to applicant):') || '';">
+                                @csrf
+                                <input type="hidden" name="rejection_reason" value="">
+                                <button type="submit" class="adm-btn adm-btn-danger" style="padding:0.3rem 0.6rem;font-size:0.8rem;">Decline</button>
+                            </form>
+                        @endif
                         <a href="{{ route('admin.platform.job-seekers.edit', $s) }}" class="adm-btn adm-btn-ghost" style="padding:0.3rem 0.6rem;font-size:0.8rem;">Edit</a>
                         <form action="{{ route('admin.platform.job-seekers.destroy', $s) }}" method="post" style="display:inline;" onsubmit="return confirm('Delete {{ $s->full_name }}?');">
                             @csrf @method('DELETE')

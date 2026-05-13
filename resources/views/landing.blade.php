@@ -170,6 +170,7 @@
     <nav class="nav">
         <div class="logo">{{ config('app.name') }}<span>.</span></div>
         <div class="nav-links">
+            <a href="{{ route('public.jobs.apply') }}" class="btn btn-ghost" style="padding:0.55rem 1rem;font-size:0.875rem;">Looking for work?</a>
             @auth
                 <a href="{{ route('dashboard') }}" class="btn btn-primary" style="padding:0.55rem 1.1rem;font-size:0.875rem;">Dashboard</a>
             @else

@@ -36,6 +36,17 @@ use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'landing');
 
+Route::get('/jobs/apply', [\App\Http\Controllers\Web\Public\JobSeekerPublicController::class, 'showForm'])
+    ->name('public.jobs.apply');
+Route::post('/jobs/apply', [\App\Http\Controllers\Web\Public\JobSeekerPublicController::class, 'submit'])
+    ->middleware('throttle:6,1')
+    ->name('public.jobs.apply.submit');
+Route::get('/jobs/status', [\App\Http\Controllers\Web\Public\JobSeekerPublicController::class, 'statusLanding'])
+    ->name('public.jobs.status');
+Route::get('/jobs/status/{token}', [\App\Http\Controllers\Web\Public\JobSeekerPublicController::class, 'statusShow'])
+    ->where('token', '[a-f0-9]{16,64}')
+    ->name('public.jobs.status.show');
+
 Route::get('/s/{slug}', [PublicShopController::class, 'resolveBySlug'])
     ->where('slug', '[a-z0-9-]+')
     ->name('public.shop.slug');
@@ -136,6 +147,8 @@ Route::middleware('auth')->group(function (): void {
         Route::get('job-seekers/{seeker}/edit', [JobSeekerPlatformWebController::class, 'edit'])->name('job-seekers.edit');
         Route::match(['put', 'patch'], 'job-seekers/{seeker}', [JobSeekerPlatformWebController::class, 'update'])->name('job-seekers.update');
         Route::delete('job-seekers/{seeker}', [JobSeekerPlatformWebController::class, 'destroy'])->name('job-seekers.destroy');
+        Route::post('job-seekers/{seeker}/approve', [JobSeekerPlatformWebController::class, 'approve'])->name('job-seekers.approve');
+        Route::post('job-seekers/{seeker}/decline', [JobSeekerPlatformWebController::class, 'decline'])->name('job-seekers.decline');
     });
 
     Route::prefix('admin/b/{business:uuid}')

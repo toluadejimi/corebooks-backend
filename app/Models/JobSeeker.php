@@ -8,9 +8,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class JobSeeker extends Model
 {
+    public const STATUS_PENDING = 'pending';
     public const STATUS_ACTIVE = 'active';
+    public const STATUS_DECLINED = 'declined';
     public const STATUS_HIDDEN = 'hidden';
     public const STATUS_ARCHIVED = 'archived';
+
+    public const SUBMITTED_VIA_ADMIN = 'admin';
+    public const SUBMITTED_VIA_PUBLIC = 'public';
 
     public const EMPLOYMENT_TYPES = [
         'full_time' => 'Full time',
@@ -52,6 +57,12 @@ class JobSeeker extends Model
         'education',
         'linkedin_url',
         'status',
+        'submitted_via',
+        'tracking_token',
+        'applied_at',
+        'rejection_reason',
+        'applicant_ip',
+        'applicant_user_agent',
         'created_by_user_id',
         'version',
     ];
@@ -62,7 +73,20 @@ class JobSeeker extends Model
             'open_to_relocate' => 'boolean',
             'expected_salary_min' => 'decimal:2',
             'expected_salary_max' => 'decimal:2',
+            'applied_at' => 'datetime',
         ];
+    }
+
+    public function statusLabel(): string
+    {
+        return match ($this->status) {
+            self::STATUS_PENDING => 'Pending review',
+            self::STATUS_ACTIVE => 'Approved',
+            self::STATUS_DECLINED => 'Declined',
+            self::STATUS_HIDDEN => 'Hidden',
+            self::STATUS_ARCHIVED => 'Archived',
+            default => ucfirst((string) $this->status),
+        };
     }
 
     public function getRouteKeyName(): string

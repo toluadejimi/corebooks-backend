@@ -92,6 +92,7 @@ class ReportController extends Controller
             'stock_value_estimate' => $this->reporting->stockValuation($business, $loc),
             'inventory_availability' => $this->reporting->inventoryAvailabilityTotals($business, $loc),
             'top_products' => $this->reporting->topProductsByUnits($business, $from, 5, $loc)->values(),
+            'customer_credit' => $this->reporting->customerCreditSummary($business, 5),
         ]);
     }
 
@@ -157,6 +158,7 @@ class ReportController extends Controller
                 'to' => $to->toDateString(),
             ],
             'by_method' => $this->reporting->paymentMix($business, $from, $to, $loc)->values(),
+            'customer_credit' => $this->reporting->customerCreditSummary($business, 10),
         ]);
     }
 

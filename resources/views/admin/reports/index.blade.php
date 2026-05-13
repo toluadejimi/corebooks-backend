@@ -364,6 +364,17 @@
                 <div class="rep-kpi-val">{{ $fmt($expenseReport['total']) }}</div>
                 <div class="rep-kpi-lbl">Expenses (range)</div>
             </div>
+            <div class="rep-kpi">
+                <div class="rep-kpi-val" style="color:{{ ($customerCredit['total_outstanding'] ?? 0) > 0 ? '#b91c1c' : 'inherit' }};">
+                    {{ $fmt($customerCredit['total_outstanding'] ?? 0) }}
+                </div>
+                <div class="rep-kpi-lbl">
+                    Customer credit outstanding
+                    @if(($customerCredit['customers_with_debt'] ?? 0) > 0)
+                        <br><span class="rep-muted">{{ number_format($customerCredit['customers_with_debt']) }} customer{{ $customerCredit['customers_with_debt'] === 1 ? '' : 's' }} owing</span>
+                    @endif
+                </div>
+            </div>
         </div>
     </div>
 
@@ -555,6 +566,70 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+
+        <div class="rep-glass-card" style="margin-top:1rem;">
+            <h2 class="rep-section-title"><span class="dot"></span> Customer credit (receivables)</h2>
+            <div class="rep-muted" style="margin-bottom:0.75rem;font-weight:600;">
+                Money customers owe right now — independent of the date range.
+            </div>
+            <div class="rep-kpi-grid" style="margin-bottom:1rem;">
+                <div class="rep-kpi">
+                    <div class="rep-kpi-val" style="color:{{ ($customerCredit['total_outstanding'] ?? 0) > 0 ? '#b91c1c' : 'inherit' }};">
+                        {{ $fmt($customerCredit['total_outstanding'] ?? 0) }}
+                    </div>
+                    <div class="rep-kpi-lbl">Total outstanding</div>
+                </div>
+                <div class="rep-kpi">
+                    <div class="rep-kpi-val">{{ number_format($customerCredit['customers_with_debt'] ?? 0) }}</div>
+                    <div class="rep-kpi-lbl">Customers owing</div>
+                </div>
+                <div class="rep-kpi">
+                    <div class="rep-kpi-val" style="color:{{ ($customerCredit['customers_at_limit'] ?? 0) > 0 ? '#b91c1c' : 'inherit' }};">
+                        {{ number_format($customerCredit['customers_at_limit'] ?? 0) }}
+                    </div>
+                    <div class="rep-kpi-lbl">At or over limit</div>
+                </div>
+                <div class="rep-kpi">
+                    <div class="rep-kpi-val">{{ $fmt($customerCredit['total_limit'] ?? 0) }}</div>
+                    <div class="rep-kpi-lbl">Total approved limit</div>
+                </div>
+            </div>
+
+            @if(($customerCredit['top'] ?? collect())->isNotEmpty())
+                <div class="rep-muted" style="margin-bottom:0.4rem;font-weight:600;">Top debtors</div>
+                <div class="rep-table-wrap">
+                    <table class="adm-table">
+                        <thead>
+                            <tr>
+                                <th>Customer</th>
+                                <th style="text-align:right;">Outstanding</th>
+                                <th style="text-align:right;">Limit</th>
+                                <th style="text-align:right;">Utilisation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($customerCredit['top'] as $row)
+                                @php
+                                    $bal = (float) $row['balance'];
+                                    $lim = (float) $row['limit'];
+                                    $util = $lim > 0 ? min(999, ($bal / $lim) * 100) : null;
+                                @endphp
+                                <tr>
+                                    <td>{{ $row['name'] }}</td>
+                                    <td style="text-align:right;font-weight:600;">{{ $fmt($bal) }}</td>
+                                    <td style="text-align:right;">{{ $lim > 0 ? $fmt($lim) : '—' }}</td>
+                                    <td style="text-align:right;{{ $util !== null && $util >= 100 ? 'color:#b91c1c;font-weight:600;' : '' }}">
+                                        {{ $util === null ? '—' : number_format($util, 0).'%' }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <div class="rep-muted">No customer currently has an outstanding balance.</div>
+            @endif
         </div>
     </div>
 
