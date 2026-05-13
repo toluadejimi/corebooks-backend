@@ -94,6 +94,7 @@ class SalesReturnController extends Controller
         $data = $request->validate([
             'reason' => ['nullable', 'string', 'max:500'],
             'refund_method' => ['nullable', 'string', 'in:cash,transfer,pos,store_credit'],
+            'returned_at' => ['nullable', 'date'],
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.sale_line_id' => ['required', 'integer'],
             'lines.*.qty' => ['required', 'numeric', 'min:0.001'],
@@ -108,6 +109,7 @@ class SalesReturnController extends Controller
                 $data['lines'],
                 $data['reason'] ?? null,
                 $data['refund_method'] ?? 'cash',
+                $data['returned_at'] ?? null,
             );
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);

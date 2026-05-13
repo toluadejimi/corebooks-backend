@@ -21,6 +21,7 @@ class PurchaseController extends Controller
             'supplier_uuid' => ['nullable', 'uuid'],
             'supplier_name' => ['nullable', 'string', 'max:255'],
             'supplier_phone' => ['nullable', 'string', 'max:32'],
+            'ordered_at' => ['nullable', 'date'],
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.product_uuid' => ['required', 'uuid'],
             'lines.*.qty' => ['required', 'numeric', 'min:0.001'],
@@ -35,6 +36,7 @@ class PurchaseController extends Controller
             $data['supplier_uuid'] ?? null,
             $data['supplier_name'] ?? null,
             $data['supplier_phone'] ?? null,
+            $data['ordered_at'] ?? null,
         );
 
         return response()->json([

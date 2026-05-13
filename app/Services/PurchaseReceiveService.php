@@ -28,12 +28,13 @@ class PurchaseReceiveService
         ?string $supplierUuid,
         ?string $supplierName,
         ?string $supplierPhone,
+        ?string $orderedAt = null,
     ): PurchaseOrder {
         if ($lines === []) {
             throw new InvalidArgumentException('At least one line is required.');
         }
 
-        return DB::transaction(function () use ($business, $locationUuid, $lines, $supplierUuid, $supplierName, $supplierPhone) {
+        return DB::transaction(function () use ($business, $locationUuid, $lines, $supplierUuid, $supplierName, $supplierPhone, $orderedAt) {
             $location = $business->locations()->where('uuid', $locationUuid)->lockForUpdate()->firstOrFail();
 
             $supplier = $this->resolveSupplier($business, $supplierUuid, $supplierName, $supplierPhone);
@@ -48,6 +49,10 @@ class PurchaseReceiveService
                 $total += round($q * $c, 2);
             }
 
+            $orderedAtTs = $orderedAt !== null && trim($orderedAt) !== ''
+                ? \Carbon\Carbon::parse($orderedAt)
+                : now();
+
             $po = PurchaseOrder::query()->create([
                 'business_id' => $business->id,
                 'supplier_id' => $supplier->id,
@@ -55,7 +60,7 @@ class PurchaseReceiveService
                 'uuid' => (string) Str::uuid(),
                 'status' => 'received',
                 'total' => round($total, 2),
-                'ordered_at' => now(),
+                'ordered_at' => $orderedAtTs,
                 'version' => 1,
             ]);
 

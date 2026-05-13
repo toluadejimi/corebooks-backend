@@ -69,6 +69,7 @@ class PurchaseWebController extends Controller
             'products' => $products,
             'suppliers' => $suppliers,
             'locations' => $locations,
+            'today' => now()->toDateString(),
         ]);
     }
 
@@ -101,6 +102,7 @@ class PurchaseWebController extends Controller
             'supplier_uuid' => ['nullable', 'uuid', Rule::exists('suppliers', 'uuid')->where('business_id', $business->id)],
             'supplier_name' => ['nullable', 'string', 'max:255'],
             'supplier_phone' => ['nullable', 'string', 'max:32'],
+            'ordered_at' => ['nullable', 'date'],
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.product_uuid' => ['required', 'uuid', Rule::exists('products', 'uuid')->where('business_id', $business->id)],
             'lines.*.qty' => ['required', 'numeric', 'min:0.001'],
@@ -123,6 +125,7 @@ class PurchaseWebController extends Controller
                 $validated['supplier_uuid'] ?? null,
                 $validated['supplier_name'] ?? null,
                 $validated['supplier_phone'] ?? null,
+                $validated['ordered_at'] ?? null,
             );
         } catch (InvalidArgumentException $e) {
             return redirect()->back()->withErrors(['purchase' => $e->getMessage()])->withInput();

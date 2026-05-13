@@ -50,6 +50,13 @@
                 <input class="adm-input" id="supplier_phone" name="supplier_phone" value="{{ old('supplier_phone') }}" placeholder="Optional">
             </div>
         </div>
+        <div class="adm-grid cols-2">
+            <div class="adm-field">
+                <label class="adm-label" for="ordered_at">Purchase date</label>
+                <input class="adm-input" id="ordered_at" name="ordered_at" type="date" value="{{ old('ordered_at', $today) }}">
+                <p style="margin:0.35rem 0 0;font-size:0.8rem;color:var(--adm-muted);">Backdate if you're recording an older receipt.</p>
+            </div>
+        </div>
 
         <h2 style="font-family:Outfit,sans-serif;font-size:1.05rem;margin:1.25rem 0 0.75rem;">Lines</h2>
         <p class="adm-page-desc" style="margin-top:-0.25rem;">At least one line with product, quantity, and unit cost.</p>

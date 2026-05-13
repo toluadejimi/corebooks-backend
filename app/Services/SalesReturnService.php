@@ -29,12 +29,13 @@ class SalesReturnService
         array $lines,
         ?string $reason,
         string $refundMethod = 'cash',
+        ?string $returnedAt = null,
     ): SalesReturn {
         if ($sale->business_id !== $business->id) {
             throw new InvalidArgumentException('Sale does not belong to this business.');
         }
 
-        return DB::transaction(function () use ($business, $sale, $userId, $lines, $reason, $refundMethod): SalesReturn {
+        return DB::transaction(function () use ($business, $sale, $userId, $lines, $reason, $refundMethod, $returnedAt): SalesReturn {
             $sale->loadMissing(['lines', 'returns.lines']);
 
             $alreadyByLine = [];
@@ -43,6 +44,10 @@ class SalesReturnService
                     $alreadyByLine[$rl->sale_line_id] = ($alreadyByLine[$rl->sale_line_id] ?? 0) + (float) $rl->qty;
                 }
             }
+
+            $returnedAtTs = $returnedAt !== null && trim($returnedAt) !== ''
+                ? \Carbon\Carbon::parse($returnedAt)
+                : now();
 
             $return = SalesReturn::query()->create([
                 'business_id' => $business->id,
@@ -55,7 +60,7 @@ class SalesReturnService
                 'refund_method' => $refundMethod,
                 'refund_total' => 0,
                 'version' => 1,
-                'returned_at' => now(),
+                'returned_at' => $returnedAtTs,
             ]);
 
             $refundTotal = 0.0;
