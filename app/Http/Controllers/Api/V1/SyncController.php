@@ -139,10 +139,16 @@ class SyncController extends Controller
             } else {
                 $q->withSum('batches', 'qty');
             }
+            $isFullSnapshot = empty($since);
             if ($since) {
                 $q->where('updated_at', '>', $since);
             }
-            $changes['products'] = $q->orderBy('updated_at')->limit(1000)->get()->map(function (Product $p) use ($locationId) {
+            // Full snapshots return the entire catalogue so the client can
+            // reconcile deletions; incremental pulls stay paged at 1000.
+            if (! $isFullSnapshot) {
+                $q->limit(1000);
+            }
+            $changes['products'] = $q->orderBy('updated_at')->get()->map(function (Product $p) use ($locationId) {
                 $stock = $locationId
                     ? (float) ($p->location_stock_qty ?? 0)
                     : (float) ($p->batches_sum_qty ?? 0);
@@ -173,6 +179,7 @@ class SyncController extends Controller
         return response()->json([
             'changes' => $changes,
             'server_time' => now()->toIso8601String(),
+            'products_full_snapshot' => isset($isFullSnapshot) ? $isFullSnapshot : false,
         ]);
     }
 }
