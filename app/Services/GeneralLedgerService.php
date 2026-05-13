@@ -425,8 +425,14 @@ final class GeneralLedgerService
     {
         $entry->load('lines');
         $dr = (float) $entry->lines->sum(fn (JournalLine $l) => (float) $l->debit);
-        if (round($dr, 2) !== round($grand, 2)) {
-            throw new InvalidArgumentException('Sale journal debits do not match grand total.');
+        // Sub-cent float artefacts can survive even after 2dp rounding when many lines
+        // are summed; SaleCheckoutService already normalises payment amounts to match
+        // grand_total exactly, so anything bigger than 0.5 cents is a real bug.
+        if (abs(round($dr, 2) - round($grand, 2)) > 0.005) {
+            throw new InvalidArgumentException(
+                'Sale journal debits ('.number_format($dr, 2)
+                .') do not match grand total ('.number_format($grand, 2).').'
+            );
         }
     }
 

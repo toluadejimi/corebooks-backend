@@ -130,13 +130,37 @@ class SaleCheckoutService
                 'grand_total' => $grandTotal,
             ]);
 
+            // Normalize payment amounts BEFORE persisting so the running sum is exactly
+            // equal to $grandTotal. Without this, a 0.01 drift from float / JSON serialisation
+            // (especially with split cash + transfer payments) makes the GL refuse to post the
+            // sale journal with "Sale journal debits do not match grand total."
             $paymentSum = 0.0;
+            foreach ($payments as $i => $p) {
+                $payments[$i]['amount'] = round((float) ($p['amount'] ?? 0), 2);
+                $paymentSum = round($paymentSum + $payments[$i]['amount'], 2);
+            }
+            $drift = round($grandTotal - $paymentSum, 2);
+            if (abs($drift) > 0.02) {
+                throw new InvalidArgumentException(
+                    'Payment total ('.number_format($paymentSum, 2)
+                    .') does not match grand total ('.number_format($grandTotal, 2).').'
+                );
+            }
+            // Absorb sub-cent drift onto the last payment so debits == grand_total exactly.
+            if (! empty($payments) && abs($drift) > 0) {
+                $lastIdx = count($payments) - 1;
+                $payments[$lastIdx]['amount'] = round(
+                    (float) $payments[$lastIdx]['amount'] + $drift,
+                    2
+                );
+                $paymentSum = $grandTotal;
+            }
+
             $creditTotal = 0.0;
             $creditPaymentRecords = [];
             foreach ($payments as $p) {
                 $amount = (float) $p['amount'];
                 $method = $p['method'];
-                $paymentSum += $amount;
                 if ($method === 'credit') {
                     $creditTotal += $amount;
                 }
@@ -151,11 +175,6 @@ class SaleCheckoutService
                 if ($method === 'credit') {
                     $creditPaymentRecords[] = $payment;
                 }
-            }
-
-            // Compare with a small tolerance: client + JSON float rounding can drift vs PHP accumulators.
-            if (abs(round($paymentSum, 2) - $grandTotal) > 0.02) {
-                throw new InvalidArgumentException('Payment total must match grand total.');
             }
 
             if ($creditTotal > 0) {
