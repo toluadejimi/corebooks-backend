@@ -7,6 +7,7 @@ use App\Http\Controllers\Web\Admin\CategoryWebController;
 use App\Http\Controllers\Web\Admin\ExtraServiceApplicationPlatformWebController;
 use App\Http\Controllers\Web\Admin\ExtraServiceWebController;
 use App\Http\Controllers\Web\Admin\GeneralLedgerWebController;
+use App\Http\Controllers\Web\Admin\JobPostingPlatformWebController;
 use App\Http\Controllers\Web\Admin\LoanApplicationPlatformWebController;
 use App\Http\Controllers\Web\Admin\LoanPartnerBankWebController;
 use App\Http\Controllers\Web\Admin\LoanWorkspaceWebController;
@@ -117,6 +118,16 @@ Route::middleware('auth')->group(function (): void {
 
         Route::get('token-settings', [TokenSettingsWebController::class, 'edit'])->name('token-settings.edit');
         Route::put('token-settings', [TokenSettingsWebController::class, 'update'])->name('token-settings.update');
+
+        Route::get('jobs', [JobPostingPlatformWebController::class, 'index'])->name('jobs.index');
+        Route::get('jobs/create', [JobPostingPlatformWebController::class, 'create'])->name('jobs.create');
+        Route::post('jobs', [JobPostingPlatformWebController::class, 'store'])->name('jobs.store');
+        Route::get('jobs/{job}/edit', [JobPostingPlatformWebController::class, 'edit'])->name('jobs.edit');
+        Route::put('jobs/{job}', [JobPostingPlatformWebController::class, 'update'])->name('jobs.update');
+        Route::delete('jobs/{job}', [JobPostingPlatformWebController::class, 'destroy'])->name('jobs.destroy');
+        Route::post('jobs/{job}/approve', [JobPostingPlatformWebController::class, 'approve'])->name('jobs.approve');
+        Route::post('jobs/{job}/reject', [JobPostingPlatformWebController::class, 'reject'])->name('jobs.reject');
+        Route::post('jobs/{job}/close', [JobPostingPlatformWebController::class, 'close'])->name('jobs.close');
     });
 
     Route::prefix('admin/b/{business:uuid}')

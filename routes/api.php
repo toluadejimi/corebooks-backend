@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\BankTransactionController;
 use App\Http\Controllers\Api\V1\ExtraServiceApplicationController;
 use App\Http\Controllers\Api\V1\GlAccountController;
 use App\Http\Controllers\Api\V1\GlReportController;
+use App\Http\Controllers\Api\V1\JobPostingController;
 use App\Http\Controllers\Api\V1\JournalEntryController;
 use App\Http\Controllers\Api\V1\ExtraServiceController;
 use App\Http\Controllers\Api\V1\LoanApplicationController;
@@ -40,6 +41,10 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function (): void {
     Route::get('subscription-plans', [SubscriptionPlanController::class, 'index']);
     Route::get('loan-partner-banks', [LoanPartnerBankController::class, 'index']);
+
+    // Public job feed (no auth) — mobile users can browse approved vacancies.
+    Route::get('jobs', [JobPostingController::class, 'index']);
+    Route::get('jobs/{jobUuid}', [JobPostingController::class, 'show']);
 
     Route::post('webhooks/paystack', [PaystackWebhookController::class, 'handle']);
 
@@ -141,6 +146,10 @@ Route::prefix('v1')->group(function (): void {
                         Route::patch('suppliers/{supplierUuid}', [SupplierApiController::class, 'update']);
                         Route::delete('suppliers/{supplierUuid}', [SupplierApiController::class, 'destroy']);
                         Route::post('purchases', [PurchaseController::class, 'store']);
+
+                        Route::get('job-postings', [JobPostingController::class, 'businessIndex']);
+                        Route::post('job-postings', [JobPostingController::class, 'businessStore']);
+                        Route::delete('job-postings/{jobUuid}', [JobPostingController::class, 'businessDestroy']);
 
                         Route::get('expense-entries', [ExpenseApiController::class, 'index']);
                         Route::post('expense-entries', [ExpenseApiController::class, 'store']);
