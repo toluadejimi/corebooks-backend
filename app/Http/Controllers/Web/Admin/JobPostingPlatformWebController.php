@@ -46,6 +46,7 @@ class JobPostingPlatformWebController extends Controller
             ->toArray();
 
         return view('admin.platform.jobs.index', [
+            'user' => $request->user(),
             'jobs' => $jobs,
             'status' => $status,
             'state' => $state,
@@ -55,9 +56,10 @@ class JobPostingPlatformWebController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
         return view('admin.platform.jobs.create', [
+            'user' => $request->user(),
             'states' => JobPosting::NIGERIAN_STATES,
             'employmentTypes' => JobPosting::EMPLOYMENT_TYPES,
         ]);
@@ -81,9 +83,10 @@ class JobPostingPlatformWebController extends Controller
             ->with('status', 'Job posted to the public feed.');
     }
 
-    public function edit(JobPosting $job): View
+    public function edit(Request $request, JobPosting $job): View
     {
         return view('admin.platform.jobs.edit', [
+            'user' => $request->user(),
             'job' => $job,
             'states' => JobPosting::NIGERIAN_STATES,
             'employmentTypes' => JobPosting::EMPLOYMENT_TYPES,
