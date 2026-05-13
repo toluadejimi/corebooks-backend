@@ -137,6 +137,9 @@ Route::prefix('v1')->group(function (): void {
                         Route::post('sales/{sale:uuid}/returns', [SalesReturnController::class, 'store']);
 
                         Route::get('suppliers', [SupplierApiController::class, 'index']);
+                        Route::post('suppliers', [SupplierApiController::class, 'store']);
+                        Route::patch('suppliers/{supplierUuid}', [SupplierApiController::class, 'update']);
+                        Route::delete('suppliers/{supplierUuid}', [SupplierApiController::class, 'destroy']);
                         Route::post('purchases', [PurchaseController::class, 'store']);
 
                         Route::get('expense-entries', [ExpenseApiController::class, 'index']);

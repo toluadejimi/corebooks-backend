@@ -18,7 +18,8 @@
         <thead>
             <tr>
                 <th>Name</th>
-                <th>Phone</th>
+                <th>Contact</th>
+                <th>Address</th>
                 <th>Purchases</th>
                 <th style="text-align:right;">Receipt total</th>
                 <th style="text-align:right;">Ledger balance</th>
@@ -29,7 +30,12 @@
             @forelse ($suppliers as $s)
                 <tr>
                     <td><strong>{{ $s->name }}</strong></td>
-                    <td style="color:var(--adm-muted);">{{ $s->phone ?? '—' }}</td>
+                    <td style="color:var(--adm-muted);">
+                        @if($s->phone)<div>{{ $s->phone }}</div>@endif
+                        @if($s->email)<div style="font-size:0.85em;">{{ $s->email }}</div>@endif
+                        @if(! $s->phone && ! $s->email)—@endif
+                    </td>
+                    <td style="color:var(--adm-muted);max-width:18ch;">{{ $s->address ? \Illuminate\Support\Str::limit($s->address, 60) : '—' }}</td>
                     <td>{{ $s->purchase_orders_count }}</td>
                     <td style="text-align:right;"><strong>{{ $currencySymbol }}{{ number_format((float) ($s->purchase_orders_total ?? 0), 2) }}</strong></td>
                     <td style="text-align:right;">{{ $currencySymbol }}{{ number_format((float) $s->balance, 2) }}</td>
@@ -44,7 +50,7 @@
                     @endif
                 </tr>
             @empty
-                <tr><td colspan="{{ $canManage ? 6 : 5 }}" style="color:var(--adm-muted);">No suppliers yet.@if($canManage) Create one to pick when recording purchases.@endif</td></tr>
+                <tr><td colspan="{{ $canManage ? 8 : 7 }}" style="color:var(--adm-muted);">No suppliers yet.@if($canManage) Create one to pick when recording purchases.@endif</td></tr>
             @endforelse
         </tbody>
     </table>

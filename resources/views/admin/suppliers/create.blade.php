@@ -13,9 +13,17 @@
         <label class="adm-label" for="name">Name</label>
         <input class="adm-input" id="name" name="name" value="{{ old('name') }}" required maxlength="255">
     </div>
-    <div class="adm-field" style="margin-bottom:1.25rem;">
+    <div class="adm-field" style="margin-bottom:1rem;">
         <label class="adm-label" for="phone">Phone (optional)</label>
         <input class="adm-input" id="phone" name="phone" value="{{ old('phone') }}" maxlength="32">
+    </div>
+    <div class="adm-field" style="margin-bottom:1rem;">
+        <label class="adm-label" for="email">Email (optional)</label>
+        <input class="adm-input" id="email" name="email" type="email" value="{{ old('email') }}" maxlength="191">
+    </div>
+    <div class="adm-field" style="margin-bottom:1.25rem;">
+        <label class="adm-label" for="address">Address (optional)</label>
+        <textarea class="adm-input" id="address" name="address" rows="3" maxlength="500">{{ old('address') }}</textarea>
     </div>
     <button type="submit" class="adm-btn adm-btn-primary">Create supplier</button>
 </form>

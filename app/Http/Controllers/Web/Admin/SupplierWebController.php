@@ -48,13 +48,17 @@ class SupplierWebController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:32'],
+            'email' => ['nullable', 'email', 'max:191'],
+            'address' => ['nullable', 'string', 'max:500'],
         ]);
 
         Supplier::query()->create([
             'business_id' => $business->id,
             'uuid' => (string) Str::uuid(),
             'name' => trim($validated['name']),
-            'phone' => isset($validated['phone']) ? trim((string) $validated['phone']) ?: null : null,
+            'phone' => $this->trimOrNull($validated['phone'] ?? null),
+            'email' => $this->trimOrNull($validated['email'] ?? null),
+            'address' => $this->trimOrNull($validated['address'] ?? null),
             'balance' => 0,
             'version' => 1,
         ]);
@@ -92,16 +96,30 @@ class SupplierWebController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:32'],
+            'email' => ['nullable', 'email', 'max:191'],
+            'address' => ['nullable', 'string', 'max:500'],
         ]);
 
         $supplier->name = trim($validated['name']);
-        $supplier->phone = isset($validated['phone']) ? trim((string) $validated['phone']) ?: null : null;
+        $supplier->phone = $this->trimOrNull($validated['phone'] ?? null);
+        $supplier->email = $this->trimOrNull($validated['email'] ?? null);
+        $supplier->address = $this->trimOrNull($validated['address'] ?? null);
         $supplier->version = $supplier->version + 1;
         $supplier->save();
 
         return redirect()
             ->route('admin.b.suppliers.index', $business)
             ->with('status', 'Supplier updated.');
+    }
+
+    private function trimOrNull(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        $trim = trim($value);
+
+        return $trim === '' ? null : $trim;
     }
 
     public function destroy(Request $request, Business $business, Supplier $supplier): RedirectResponse
