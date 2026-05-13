@@ -39,6 +39,9 @@
                 <a href="{{ route('admin.b.ledger.index', $business) }}" class="{{ request()->routeIs('admin.b.ledger.*') ? 'active' : '' }}">
                     <span class="adm-nav-icon">≡</span> General ledger
                 </a>
+                <a href="{{ route('admin.b.accounts.index', $business) }}" class="{{ request()->routeIs('admin.b.accounts.*') ? 'active' : '' }}">
+                    <span class="adm-nav-icon">$</span> Accounts
+                </a>
                 <a href="{{ route('admin.b.products.index', $business) }}" class="{{ request()->routeIs('admin.b.products.*') ? 'active' : '' }}">
                     <span class="adm-nav-icon">▤</span> Products
                 </a>

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Web\Admin\AccountsWebController;
 use App\Http\Controllers\Web\Admin\BusinessSettingsWebController;
 use App\Http\Controllers\Web\Admin\BusinessSubscriptionPlatformWebController;
 use App\Http\Controllers\Web\Admin\CategoryWebController;
@@ -129,6 +130,14 @@ Route::middleware('auth')->group(function (): void {
                 ->name('reports.export');
             Route::get('/reports', [ReportsWebController::class, 'index'])->name('reports.index');
             Route::get('/general-ledger', [GeneralLedgerWebController::class, 'index'])->name('ledger.index');
+
+            Route::get('/accounts', [AccountsWebController::class, 'index'])->name('accounts.index');
+            Route::middleware('business.role:manager')->group(function (): void {
+                Route::post('/accounts', [AccountsWebController::class, 'storeAccount'])->name('accounts.store-account');
+                Route::post('/accounts/transfer', [AccountsWebController::class, 'transfer'])->name('accounts.transfer');
+                Route::post('/accounts/deposit', [AccountsWebController::class, 'deposit'])->name('accounts.deposit');
+                Route::post('/accounts/withdraw', [AccountsWebController::class, 'withdraw'])->name('accounts.withdraw');
+            });
 
             Route::get('/settings', [BusinessSettingsWebController::class, 'edit'])->name('settings.edit');
             Route::middleware('business.role:manager')->group(function (): void {

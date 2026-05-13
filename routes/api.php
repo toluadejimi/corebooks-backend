@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BusinessController;
 use App\Http\Controllers\Api\V1\BusinessTokenController;
@@ -105,6 +106,14 @@ Route::prefix('v1')->group(function (): void {
                     });
                     Route::get('journal-entries', [JournalEntryController::class, 'index']);
                     Route::get('gl-trial-balance', [GlReportController::class, 'trialBalance']);
+
+                    Route::get('accounts', [AccountController::class, 'index']);
+                    Route::middleware('business.role:manager')->group(function (): void {
+                        Route::post('accounts', [AccountController::class, 'store']);
+                        Route::post('accounts/transfer', [AccountController::class, 'transfer']);
+                        Route::post('accounts/deposit', [AccountController::class, 'deposit']);
+                        Route::post('accounts/withdraw', [AccountController::class, 'withdraw']);
+                    });
 
                     Route::get('payroll/me', [PayrollController::class, 'myPayslips']);
                     Route::get('payroll/runs/{run}', [PayrollController::class, 'showRun']);
