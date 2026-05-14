@@ -6,6 +6,12 @@
 <h1 class="adm-page-title">Sales</h1>
 <p class="adm-page-desc">Completed POS and API sales. Open a row for line items, VAT, discounts, and payment split.</p>
 
+@if ($errors->has('sale'))
+    <div class="adm-card" style="border:1px solid var(--adm-danger,#dc2626);background:rgba(220,38,38,0.08);color:var(--adm-danger,#dc2626);padding:0.85rem 1rem;margin-bottom:1rem;border-radius:10px;">
+        {{ $errors->first('sale') }}
+    </div>
+@endif
+
 <div class="adm-table-wrap">
     <table class="adm-table">
         <thead>

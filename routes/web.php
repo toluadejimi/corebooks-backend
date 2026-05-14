@@ -211,7 +211,9 @@ Route::middleware('auth')->group(function (): void {
                 ->name('purchases.show');
 
             Route::get('/sales', [SalesWebController::class, 'index'])->name('sales.index');
-            Route::get('/sales/{sale}', [SalesWebController::class, 'show'])->name('sales.show');
+            // Plain string UUID + manual resolve: avoids implicit/child-binding pitfalls and
+            // gracefully redirects when a stale GL link or bookmark points at a missing sale.
+            Route::get('/sales/{saleUuid}', [SalesWebController::class, 'show'])->name('sales.show');
 
             Route::get('/suppliers', [SupplierWebController::class, 'index'])->name('suppliers.index');
             Route::middleware('business.role:manager')->group(function (): void {

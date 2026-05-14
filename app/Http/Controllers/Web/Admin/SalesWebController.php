@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Web\Admin\Concerns\ResolvesWorkspace;
 use App\Models\Business;
 use App\Models\Sale;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -38,9 +39,34 @@ class SalesWebController extends Controller
         ]);
     }
 
-    public function show(Request $request, Business $business, Sale $sale): View
+    public function show(Request $request, Business $business, string $saleUuid): View|RedirectResponse
     {
-        abort_if($sale->business_id !== $business->id, 404);
+        $saleUuid = trim($saleUuid);
+
+        // Try uuid first, then receipt_no — older bookmarks / hand-edited URLs sometimes
+        // use the receipt number rather than the uuid. Both lookups are scoped to this
+        // workspace so cross-business data never leaks.
+        $sale = Sale::query()
+            ->where('business_id', $business->id)
+            ->where(function ($q) use ($saleUuid): void {
+                $q->where('uuid', $saleUuid)
+                    ->orWhere('receipt_no', $saleUuid);
+            })
+            ->first();
+
+        if ($sale === null) {
+            return redirect()
+                ->route('admin.b.sales.index', $business)
+                ->withErrors([
+                    'sale' => "We couldn't find that sale (it may have been deleted or belongs to a different workspace).",
+                ]);
+        }
+
+        // If the URL used the receipt_no, redirect to the canonical uuid URL so the link
+        // is share-friendly and consistent with the rest of the admin.
+        if ($sale->uuid !== $saleUuid) {
+            return redirect()->route('admin.b.sales.show', [$business, $sale->uuid]);
+        }
 
         $sale->load([
             'lines.product',
