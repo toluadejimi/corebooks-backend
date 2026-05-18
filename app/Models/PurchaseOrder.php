@@ -52,6 +52,11 @@ class PurchaseOrder extends Model
         return $this->hasMany(PurchaseOrderLine::class);
     }
 
+    public function payments(): HasMany
+    {
+        return $this->hasMany(PurchasePayment::class);
+    }
+
     /**
      * Scope purchase detail URLs to the workspace in the path (admin/b/{business}/purchases/…).
      */

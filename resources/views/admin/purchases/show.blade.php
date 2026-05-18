@@ -31,6 +31,30 @@
     </p>
 </div>
 
+@if($po->payments->isNotEmpty())
+<h2 class="adm-page-title" style="font-size:1.05rem;margin:0.75rem 0 0.5rem;">Payment</h2>
+<div class="adm-table-wrap" style="max-width:820px;margin-bottom:1.25rem;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Method</th>
+                <th>Account</th>
+                <th style="text-align:right;">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($po->payments as $pay)
+                <tr>
+                    <td>{{ ucfirst($pay->method) }}</td>
+                    <td>{{ $pay->glAccount?->name ?? '—' }}</td>
+                    <td style="text-align:right;">{{ $currencySymbol }}{{ number_format((float) $pay->amount, 2) }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+</div>
+@endif
+
 <h2 class="adm-page-title" style="font-size:1.05rem;margin-bottom:0.5rem;">Lines received</h2>
 <div class="adm-table-wrap">
     <table class="adm-table">

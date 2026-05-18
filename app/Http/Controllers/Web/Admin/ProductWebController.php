@@ -107,18 +107,25 @@ class ProductWebController extends Controller
     }
 
     /**
-     * GET /products/{uuid} — canonical edit URL uses /edit; this avoids 404 when the bare URL is opened or GET-followed.
+     * GET /products/{uuid} — canonical edit URL uses /edit; redirects when bare URL is opened.
      */
-    public function redirectToEdit(Request $request, Business $business, Product $product): RedirectResponse
+    public function redirectToEdit(Request $request, Business $business, string $productUuid): RedirectResponse
     {
-        abort_if($product->business_id !== $business->id, 404);
+        $product = $this->findProduct($business, $productUuid);
+        if ($product === null) {
+            return $this->productNotFoundRedirect($business);
+        }
 
         return redirect()->route('admin.b.products.edit', [$business, $product->uuid]);
     }
 
-    public function edit(Request $request, Business $business, Product $product): View
+    public function edit(Request $request, Business $business, string $productUuid): View|RedirectResponse
     {
-        abort_if($product->business_id !== $business->id, 404);
+        $product = $this->findProduct($business, $productUuid);
+        if ($product === null) {
+            return $this->productNotFoundRedirect($business);
+        }
+
         $product->loadSum('batches', 'qty');
 
         return view('admin.products.form', $this->workspace($request, $business) + [
@@ -128,9 +135,12 @@ class ProductWebController extends Controller
         ]);
     }
 
-    public function update(Request $request, Business $business, Product $product): RedirectResponse
+    public function update(Request $request, Business $business, string $productUuid): RedirectResponse
     {
-        abort_if($product->business_id !== $business->id, 404);
+        $product = $this->findProduct($business, $productUuid);
+        if ($product === null) {
+            return $this->productNotFoundRedirect($business);
+        }
 
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
@@ -158,13 +168,39 @@ class ProductWebController extends Controller
             ->with('status', 'Product updated.');
     }
 
-    public function destroy(Request $request, Business $business, Product $product): RedirectResponse
+    public function destroy(Request $request, Business $business, string $productUuid): RedirectResponse
     {
-        abort_if($product->business_id !== $business->id, 404);
+        $product = $this->findProduct($business, $productUuid);
+        if ($product === null) {
+            return $this->productNotFoundRedirect($business);
+        }
+
         $product->delete();
 
         return redirect()
             ->route('admin.b.products.index', $business)
             ->with('status', 'Product removed.');
+    }
+
+    private function findProduct(Business $business, string $productUuid): ?Product
+    {
+        $productUuid = trim($productUuid);
+        if ($productUuid === '') {
+            return null;
+        }
+
+        return Product::query()
+            ->where('business_id', $business->id)
+            ->where('uuid', $productUuid)
+            ->first();
+    }
+
+    private function productNotFoundRedirect(Business $business): RedirectResponse
+    {
+        return redirect()
+            ->route('admin.b.products.index', $business)
+            ->withErrors([
+                'product' => 'That product could not be found. It may have been deleted, or the link is for another workspace.',
+            ]);
     }
 }

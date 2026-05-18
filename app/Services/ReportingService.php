@@ -9,6 +9,7 @@ use App\Models\Expense;
 use App\Models\Location;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Models\PurchaseOrder;
 use App\Models\ProductBatch;
 use App\Models\Sale;
 use App\Models\SaleLine;
@@ -304,6 +305,113 @@ class ReportingService
             'by_category' => $byCategory,
             'lines' => $lines,
         ];
+    }
+
+    /**
+     * Stock purchases received in the date range (by `ordered_at`, else `created_at`).
+     *
+     * @return array{
+     *     total: float,
+     *     order_count: int,
+     *     by_supplier: Collection<string, float>,
+     *     orders: Collection<int, array<string, mixed>>
+     * }
+     */
+    public function purchaseReport(Business $business, Carbon $from, Carbon $to, ?int $locationId = null): array
+    {
+        $orders = PurchaseOrder::query()
+            ->where('business_id', $business->id)
+            ->where('status', 'received')
+            ->whereRaw('COALESCE(ordered_at, created_at) BETWEEN ? AND ?', [$from, $to])
+            ->when($locationId !== null, fn ($q) => $q->where('location_id', $locationId))
+            ->with(['supplier', 'location', 'payments.glAccount'])
+            ->withCount('lines')
+            ->orderByDesc('ordered_at')
+            ->orderByDesc('id')
+            ->get();
+
+        $bySupplier = $orders
+            ->groupBy(fn (PurchaseOrder $po) => $po->supplier?->name ?: 'Unknown')
+            ->map(fn (Collection $g) => round((float) $g->sum('total'), 2));
+
+        return [
+            'total' => round((float) $orders->sum('total'), 2),
+            'order_count' => $orders->count(),
+            'by_supplier' => $bySupplier,
+            'orders' => $orders->map(fn (PurchaseOrder $po) => $this->purchaseOrderSummary($po))->values(),
+        ];
+    }
+
+    /**
+     * Full purchase receipt for drill-down (lines + payments).
+     *
+     * @return array<string, mixed>|null
+     */
+    public function purchaseOrderDetail(Business $business, string $purchaseUuid): ?array
+    {
+        $po = PurchaseOrder::query()
+            ->where('business_id', $business->id)
+            ->where('uuid', $purchaseUuid)
+            ->with(['supplier', 'location', 'lines.product', 'payments.glAccount'])
+            ->first();
+
+        if ($po === null) {
+            return null;
+        }
+
+        return $this->purchaseOrderDetailPayload($po);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function purchaseOrderSummary(PurchaseOrder $po): array
+    {
+        $paid = round((float) $po->payments->sum(fn ($p) => (float) $p->amount), 2);
+        $total = round((float) $po->total, 2);
+        $onAccount = round(max($total - $paid, 0), 2);
+
+        return [
+            'uuid' => $po->uuid,
+            'total' => $total,
+            'paid_total' => $paid,
+            'on_account' => $onAccount,
+            'ordered_at' => ($po->ordered_at ?? $po->created_at)?->toIso8601String(),
+            'supplier_uuid' => $po->supplier?->uuid,
+            'supplier_name' => $po->supplier?->name,
+            'location_uuid' => $po->location?->uuid,
+            'location_name' => $po->location?->name,
+            'line_count' => (int) ($po->lines_count ?? $po->lines->count()),
+            'payments' => $po->payments->map(fn ($p) => [
+                'method' => $p->method,
+                'amount' => (float) $p->amount,
+                'account_name' => $p->glAccount?->name,
+            ])->values()->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function purchaseOrderDetailPayload(PurchaseOrder $po): array
+    {
+        $summary = $this->purchaseOrderSummary($po);
+        $summary['status'] = $po->status;
+        $summary['lines'] = $po->lines->map(function ($line) {
+            $qty = (float) $line->qty;
+            $unit = (float) $line->unit_cost;
+
+            return [
+                'product_uuid' => $line->product?->uuid,
+                'product_name' => $line->product?->name,
+                'qty' => $qty,
+                'unit_cost' => $unit,
+                'line_total' => round($qty * $unit, 2),
+                'expiry_date' => $line->expiry_date?->toDateString(),
+            ];
+        })->values()->all();
+
+        return $summary;
     }
 
     /**

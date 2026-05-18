@@ -184,12 +184,19 @@ Route::middleware('auth')->group(function (): void {
             Route::middleware('business.role:manager')->group(function (): void {
                 Route::get('/products/create', [ProductWebController::class, 'create'])->name('products.create');
                 Route::post('/products', [ProductWebController::class, 'store'])->name('products.store');
-                // {product} not {product:uuid}: explicit ":uuid" uses parent $business->products() child binding;
-                // Product::resolveRouteBinding() already scopes by workspace (same pattern as suppliers).
-                Route::get('/products/{product}', [ProductWebController::class, 'redirectToEdit'])->name('products.show');
-                Route::get('/products/{product}/edit', [ProductWebController::class, 'edit'])->name('products.edit');
-                Route::put('/products/{product}', [ProductWebController::class, 'update'])->name('products.update');
-                Route::delete('/products/{product}', [ProductWebController::class, 'destroy'])->name('products.destroy');
+                // Plain UUID + manual resolve in controller (avoids implicit/scoped binding 404s on shared hosting).
+                Route::get('/products/{productUuid}', [ProductWebController::class, 'redirectToEdit'])
+                    ->whereUuid('productUuid')
+                    ->name('products.show');
+                Route::get('/products/{productUuid}/edit', [ProductWebController::class, 'edit'])
+                    ->whereUuid('productUuid')
+                    ->name('products.edit');
+                Route::put('/products/{productUuid}', [ProductWebController::class, 'update'])
+                    ->whereUuid('productUuid')
+                    ->name('products.update');
+                Route::delete('/products/{productUuid}', [ProductWebController::class, 'destroy'])
+                    ->whereUuid('productUuid')
+                    ->name('products.destroy');
             });
 
             Route::get('/stock', [StockWebController::class, 'index'])->name('stock.index');

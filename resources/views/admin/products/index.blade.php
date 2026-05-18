@@ -6,6 +6,12 @@
 <h1 class="adm-page-title">Products</h1>
 <p class="adm-page-desc">Catalog items with category and image, plus on-hand totals (sum of batches).</p>
 
+@if ($errors->has('product'))
+    <div class="adm-card" style="border:1px solid var(--adm-danger,#dc2626);background:rgba(220,38,38,0.08);color:var(--adm-danger,#dc2626);padding:0.85rem 1rem;margin-bottom:1rem;border-radius:10px;">
+        {{ $errors->first('product') }}
+    </div>
+@endif
+
 @if($canManage)
     <div class="adm-actions" style="margin-bottom:1rem;">
         <a href="{{ route('admin.b.products.create', $business) }}" class="adm-btn adm-btn-primary">+ New product</a>

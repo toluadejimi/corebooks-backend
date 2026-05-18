@@ -7,6 +7,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProductBatch extends Model
 {
+    protected static function booted(): void
+    {
+        static::saved(function (ProductBatch $batch): void {
+            if ($batch->product_id === null) {
+                return;
+            }
+            Product::query()
+                ->whereKey($batch->product_id)
+                ->update(['updated_at' => now()]);
+        });
+    }
+
     protected $fillable = [
         'business_id',
         'product_id',

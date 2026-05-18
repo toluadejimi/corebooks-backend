@@ -109,6 +109,9 @@ Route::prefix('v1')->group(function (): void {
                     Route::get('reports/products', [ReportController::class, 'products']);
                     Route::get('reports/payments', [ReportController::class, 'payments']);
                     Route::get('reports/expenses', [ReportController::class, 'expenses']);
+                    Route::get('reports/purchases', [ReportController::class, 'purchases']);
+                    Route::get('reports/purchases/{purchaseUuid}', [ReportController::class, 'purchaseShow'])
+                        ->whereUuid('purchaseUuid');
                     Route::get('reports/firs', [ReportController::class, 'firs']);
                     Route::get('reports/sales-ledger', [ReportController::class, 'salesLedger']);
 

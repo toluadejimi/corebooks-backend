@@ -86,37 +86,49 @@ class SaleCheckoutService
                 $lineTax = round($lineSubtotal * ($taxRate / 100), 2);
                 $lineTotal = $lineSubtotal + $lineTax;
 
-                $batch = $this->resolveBatch($business, $product, $location->id, $line['batch_uuid'] ?? null, $qty);
+                $allocations = $this->allocateBatches(
+                    $business,
+                    $product,
+                    $location->id,
+                    $line['batch_uuid'] ?? null,
+                    $qty,
+                );
 
+                // Receipt line uses the first batch touched; stock is deducted FIFO across all batches.
                 SaleLine::query()->create([
                     'sale_id' => $sale->id,
                     'product_id' => $product->id,
-                    'product_batch_id' => $batch->id,
+                    'product_batch_id' => $allocations[0]['batch']->id,
                     'qty' => $qty,
                     'unit_price' => $unitPrice,
                     'tax_rate' => $taxRate,
                     'line_total' => $lineTotal,
                 ]);
 
-                $batch->qty = (float) $batch->qty - $qty;
-                if ($batch->qty < 0) {
-                    throw new InvalidArgumentException('Insufficient stock for '.$product->name);
-                }
-                $batch->version = $batch->version + 1;
-                $batch->save();
+                foreach ($allocations as $allocation) {
+                    /** @var ProductBatch $batch */
+                    $batch = $allocation['batch'];
+                    $take = (float) $allocation['qty'];
+                    $batch->qty = round((float) $batch->qty - $take, 3);
+                    if ($batch->qty < -0.0001) {
+                        throw new InvalidArgumentException('Insufficient stock for '.$product->name);
+                    }
+                    $batch->version = (int) $batch->version + 1;
+                    $batch->save();
 
-                StockMovement::query()->create([
-                    'business_id' => $business->id,
-                    'product_id' => $product->id,
-                    'product_batch_id' => $batch->id,
-                    'location_id' => $location->id,
-                    'uuid' => (string) Str::uuid(),
-                    'type' => 'out',
-                    'qty' => -1 * abs($qty),
-                    'ref_type' => 'sale',
-                    'ref_uuid' => $sale->uuid,
-                    'version' => 1,
-                ]);
+                    StockMovement::query()->create([
+                        'business_id' => $business->id,
+                        'product_id' => $product->id,
+                        'product_batch_id' => $batch->id,
+                        'location_id' => $location->id,
+                        'uuid' => (string) Str::uuid(),
+                        'type' => 'out',
+                        'qty' => -1 * abs($take),
+                        'ref_type' => 'sale',
+                        'ref_uuid' => $sale->uuid,
+                        'version' => 1,
+                    ]);
+                }
 
                 $subtotal += $lineSubtotal;
                 $taxTotal += $lineTax;
@@ -259,13 +271,19 @@ class SaleCheckoutService
         return 'RCP-'.$business->id.'-'.now()->format('YmdHis').'-'.strtoupper(Str::random(4));
     }
 
-    private function resolveBatch(
+    /**
+     * Allocate sale quantity across batches (FIFO by expiry). POS shows total stock
+     * across all batches; selling must not fail when the oldest batch alone is too small.
+     *
+     * @return array<int, array{batch: ProductBatch, qty: float}>
+     */
+    private function allocateBatches(
         Business $business,
         Product $product,
         int $locationId,
         ?string $batchUuid,
         float $qty,
-    ): ProductBatch {
+    ): array {
         $query = ProductBatch::query()
             ->where('business_id', $business->id)
             ->where('product_id', $product->id)
@@ -274,18 +292,50 @@ class SaleCheckoutService
             ->orderByRaw('expiry_date IS NULL, expiry_date ASC');
 
         if ($batchUuid) {
-            return (clone $query)->where('uuid', $batchUuid)->lockForUpdate()->firstOrFail();
+            $batch = (clone $query)->where('uuid', $batchUuid)->lockForUpdate()->firstOrFail();
+            if ((float) $batch->qty + 0.0001 < $qty) {
+                throw new InvalidArgumentException(
+                    'Insufficient stock in the selected batch for '.$product->name
+                    .' (available '.number_format((float) $batch->qty, 3, '.', '').').'
+                );
+            }
+
+            return [['batch' => $batch, 'qty' => $qty]];
         }
 
-        $batch = $query->lockForUpdate()->first();
-        if (! $batch) {
+        $batches = $query->lockForUpdate()->get();
+        if ($batches->isEmpty()) {
             throw new InvalidArgumentException('No stock batch available for '.$product->name);
         }
 
-        if ((float) $batch->qty < $qty) {
-            throw new InvalidArgumentException('Insufficient stock on batch for '.$product->name);
+        $totalAvailable = round((float) $batches->sum(fn (ProductBatch $b) => (float) $b->qty), 3);
+        if ($totalAvailable + 0.0001 < $qty) {
+            throw new InvalidArgumentException(
+                'Insufficient stock for '.$product->name
+                .' (available '.number_format($totalAvailable, 3, '.', '').').'
+            );
         }
 
-        return $batch;
+        $remaining = $qty;
+        $allocations = [];
+        foreach ($batches as $batch) {
+            if ($remaining <= 0.0001) {
+                break;
+            }
+            $available = (float) $batch->qty;
+            if ($available <= 0) {
+                continue;
+            }
+            $take = min($remaining, $available);
+            $take = round($take, 3);
+            $allocations[] = ['batch' => $batch, 'qty' => $take];
+            $remaining = round($remaining - $take, 3);
+        }
+
+        if ($remaining > 0.0001) {
+            throw new InvalidArgumentException('Insufficient stock for '.$product->name);
+        }
+
+        return $allocations;
     }
 }

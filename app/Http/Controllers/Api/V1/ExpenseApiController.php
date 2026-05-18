@@ -7,18 +7,18 @@ use App\Models\Business;
 use App\Models\Expense;
 use App\Models\GlAccount;
 use App\Services\AccountFundsService;
+use App\Services\FundAccountService;
 use App\Services\GeneralLedgerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 
 class ExpenseApiController extends Controller
 {
     public function __construct(
         private readonly GeneralLedgerService $ledger,
         private readonly AccountFundsService $funds,
+        private readonly FundAccountService $fundAccounts,
     ) {}
 
     public function index(Request $request, Business $business): JsonResponse
@@ -61,8 +61,8 @@ class ExpenseApiController extends Controller
 
         // Resolve the funds account (cash on hand or a bank). If the caller
         // skips it, fall back to Cash on hand so legacy clients keep working.
-        $fund = $this->resolveFundAccount($business, $data['account_uuid'] ?? null);
-        $this->assertAccountHasFunds($business, $fund, (float) $data['amount']);
+        $fund = $this->fundAccounts->resolveGlAccount($business, $data['account_uuid'] ?? null);
+        $this->fundAccounts->assertHasFunds($business, $fund, (float) $data['amount']);
 
         $e = Expense::query()->create([
             'business_id' => $business->id,
@@ -124,7 +124,7 @@ class ExpenseApiController extends Controller
         }
 
         if (array_key_exists('account_uuid', $data)) {
-            $fund = $this->resolveFundAccount($business, $data['account_uuid']);
+            $fund = $this->fundAccounts->resolveGlAccount($business, $data['account_uuid']);
             $expense->gl_account_id = $fund->id;
         }
 
@@ -145,8 +145,8 @@ class ExpenseApiController extends Controller
         }
 
         try {
-            $this->assertAccountHasFunds($business, $fundForCheck, (float) $expense->amount);
-        } catch (ValidationException $e) {
+            $this->fundAccounts->assertHasFunds($business, $fundForCheck, (float) $expense->amount);
+        } catch (\Illuminate\Validation\ValidationException $e) {
             // Re-post the original journal so we don't leave the books in a bad state.
             $this->ledger->postExpenseJournal($business, $expense);
             throw $e;
@@ -176,70 +176,6 @@ class ExpenseApiController extends Controller
             'ok' => true,
             'accounts' => $this->funds->listAccounts($business),
         ]);
-    }
-
-    /**
-     * Accepts either the funds-account UUID (`cash:<gl-uuid>` for Cash on hand,
-     * or a `BankAccount.uuid`) or a raw GL account UUID — whichever the mobile
-     * client sends — and returns the underlying `GlAccount`.
-     */
-    private function resolveFundAccount(Business $business, ?string $accountUuid): GlAccount
-    {
-        if ($accountUuid === null || trim($accountUuid) === '') {
-            return GlAccount::query()
-                ->where('business_id', $business->id)
-                ->where('code', GeneralLedgerService::CODE_CASH)
-                ->firstOrFail();
-        }
-
-        $accounts = $this->funds->listAccounts($business);
-        foreach ($accounts as $a) {
-            if ($a['uuid'] === $accountUuid || $a['gl_account_uuid'] === $accountUuid) {
-                $gl = GlAccount::query()
-                    ->where('business_id', $business->id)
-                    ->where('uuid', $a['gl_account_uuid'])
-                    ->first();
-                if ($gl !== null) {
-                    return $gl;
-                }
-            }
-        }
-
-        throw ValidationException::withMessages([
-            'account_uuid' => 'Pick a valid account.',
-        ]);
-    }
-
-    /**
-     * Throws a 422 with a user-friendly message when the account balance can't
-     * cover the new expense. Equality is tolerated so a business can spend the
-     * full balance.
-     */
-    private function assertAccountHasFunds(Business $business, GlAccount $gl, float $amount): void
-    {
-        $balance = $this->accountBalance($business, (int) $gl->id);
-        if ($amount > $balance + 0.0001) {
-            $remaining = number_format(max($balance, 0), 2, '.', ',');
-            $name = $gl->name !== '' ? $gl->name : 'this account';
-            throw ValidationException::withMessages([
-                'amount' => "Not enough funds in {$name}. Available balance: {$remaining}.",
-            ]);
-        }
-    }
-
-    private function accountBalance(Business $business, int $glAccountId): float
-    {
-        $row = DB::table('journal_lines')
-            ->join('journal_entries', 'journal_entries.id', '=', 'journal_lines.journal_entry_id')
-            ->where('journal_entries.business_id', $business->id)
-            ->where('journal_lines.gl_account_id', $glAccountId)
-            ->selectRaw('COALESCE(SUM(debit), 0) as dr, COALESCE(SUM(credit), 0) as cr')
-            ->first();
-
-        $dr = (float) ($row?->dr ?? 0);
-        $cr = (float) ($row?->cr ?? 0);
-
-        return round($dr - $cr, 2);
     }
 
     private function row(Expense $e): array

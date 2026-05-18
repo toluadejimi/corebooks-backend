@@ -9,6 +9,8 @@ use App\Models\GlAccount;
 use App\Models\JournalEntry;
 use App\Models\JournalLine;
 use App\Models\PayrollRun;
+use App\Models\PurchaseOrder;
+use App\Models\PurchasePayment;
 use App\Models\Sale;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -24,6 +26,10 @@ final class GeneralLedgerService
     public const CODE_BANK = '1020';
 
     public const CODE_AR = '1030';
+
+    public const CODE_INVENTORY = '1040';
+
+    public const CODE_AP = '2020';
 
     public const CODE_VAT_PAYABLE = '2010';
 
@@ -41,6 +47,8 @@ final class GeneralLedgerService
             [self::CODE_CASH, 'Cash on hand', 'asset', 10],
             [self::CODE_BANK, 'Bank deposits', 'asset', 20],
             [self::CODE_AR, 'Accounts receivable', 'asset', 25],
+            [self::CODE_INVENTORY, 'Inventory', 'asset', 28],
+            [self::CODE_AP, 'Accounts payable', 'liability', 35],
             [self::CODE_VAT_PAYABLE, 'VAT payable', 'liability', 30],
             [self::CODE_PAYROLL_WITHHOLDINGS, 'Payroll withholdings payable', 'liability', 40],
             [self::CODE_SALES, 'Sales revenue', 'revenue', 50],
@@ -237,6 +245,75 @@ final class GeneralLedgerService
                 ['gl_account_id' => $aAr->id, 'debit' => 0, 'credit' => $amount, 'description' => 'Reduce Accounts receivable'],
             ]);
             $this->assertBalanced($journal);
+        });
+    }
+
+    public function postPurchaseJournal(Business $business, PurchaseOrder $po): void
+    {
+        $this->ensureDefaultChart($business);
+        $po->loadMissing(['payments.glAccount', 'supplier']);
+        $key = 'purchase:'.$po->uuid;
+        if (JournalEntry::query()->where('business_id', $business->id)->where('idempotency_key', $key)->exists()) {
+            return;
+        }
+
+        $total = round((float) $po->total, 2);
+        if ($total <= 0) {
+            return;
+        }
+
+        $inventory = $this->account($business, self::CODE_INVENTORY);
+        $ap = $this->account($business, self::CODE_AP);
+        $paid = round((float) $po->payments->sum(fn (PurchasePayment $p) => (float) $p->amount), 2);
+        $onAccount = round(max($total - $paid, 0), 2);
+
+        $lines = [
+            ['gl_account_id' => $inventory->id, 'debit' => $total, 'credit' => 0, 'description' => 'Stock purchase received'],
+        ];
+
+        foreach ($po->payments as $payment) {
+            $gl = $payment->glAccount;
+            if ($gl === null) {
+                continue;
+            }
+            $amt = round((float) $payment->amount, 2);
+            if ($amt <= 0) {
+                continue;
+            }
+            $label = $gl->name !== '' ? $gl->name : 'Funds account';
+            $method = $payment->method === 'transfer' ? 'transfer' : ($payment->method === 'pos' ? 'POS' : 'cash');
+            $lines[] = [
+                'gl_account_id' => $gl->id,
+                'debit' => 0,
+                'credit' => $amt,
+                'description' => "Paid via {$method} from {$label}",
+            ];
+        }
+
+        if ($onAccount > 0.0001) {
+            $supplierName = $po->supplier?->name ?? 'supplier';
+            $lines[] = [
+                'gl_account_id' => $ap->id,
+                'debit' => 0,
+                'credit' => $onAccount,
+                'description' => "On account — {$supplierName}",
+            ];
+        }
+
+        DB::transaction(function () use ($business, $po, $key, $lines): void {
+            $entry = JournalEntry::query()->create([
+                'business_id' => $business->id,
+                'uuid' => (string) Str::uuid(),
+                'entry_date' => $po->ordered_at?->toDateString() ?? now()->toDateString(),
+                'posted_at' => now(),
+                'memo' => 'Purchase received',
+                'source_type' => 'purchase_order',
+                'source_uuid' => $po->uuid,
+                'idempotency_key' => $key,
+            ]);
+
+            $this->insertLines($entry, $lines);
+            $this->assertBalanced($entry);
         });
     }
 

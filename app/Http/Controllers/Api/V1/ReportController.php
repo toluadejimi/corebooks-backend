@@ -253,4 +253,34 @@ class ReportController extends Controller
             ])->values(),
         ]);
     }
+
+    public function purchases(Request $request, Business $business): JsonResponse
+    {
+        $this->denySalesBeyondBranchSummaries($request, $business);
+
+        [$from, $to] = $this->reporting->resolveRange($request->query('from'), $request->query('to'));
+        $loc = $this->locationId($business, $request);
+        $r = $this->reporting->purchaseReport($business, $from, $to, $loc);
+
+        return response()->json([
+            'period' => [
+                'from' => $from->toDateString(),
+                'to' => $to->toDateString(),
+            ],
+            'total' => $r['total'],
+            'order_count' => $r['order_count'],
+            'by_supplier' => $r['by_supplier']->toArray(),
+            'orders' => $r['orders'],
+        ]);
+    }
+
+    public function purchaseShow(Request $request, Business $business, string $purchaseUuid): JsonResponse
+    {
+        $this->denySalesBeyondBranchSummaries($request, $business);
+
+        $detail = $this->reporting->purchaseOrderDetail($business, $purchaseUuid);
+        abort_if($detail === null, 404, 'Purchase not found.');
+
+        return response()->json(['data' => $detail]);
+    }
 }

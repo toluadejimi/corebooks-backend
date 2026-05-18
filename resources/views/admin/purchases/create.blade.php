@@ -58,6 +58,78 @@
             </div>
         </div>
 
+        <h2 style="font-family:Outfit,sans-serif;font-size:1.05rem;margin:1.25rem 0 0.75rem;">Payment</h2>
+        <p class="adm-page-desc" style="margin-top:-0.25rem;">Funds are deducted from your cash or bank accounts when stock is received (same as expenses).</p>
+        <div class="adm-card" style="padding:1rem;margin-bottom:1rem;background:var(--adm-accent-soft);border-color:#c7d2fe;">
+            <div class="adm-field" style="margin:0 0 0.75rem;">
+                <label class="adm-label">
+                    <input type="checkbox" id="pay-split" name="pay_split" value="1" @checked(old('pay_split')) style="margin-right:0.35rem;">
+                    Split cash &amp; bank transfer
+                </label>
+            </div>
+            <div id="pay-single">
+                <div class="adm-grid cols-2">
+                    <div class="adm-field" style="margin:0;">
+                        <label class="adm-label" for="pay_method_single">Method</label>
+                        <select class="adm-select" id="pay_method_single" name="payments[0][method]">
+                            <option value="cash" @selected(old('payments.0.method', 'cash') === 'cash')>Cash</option>
+                            <option value="transfer" @selected(old('payments.0.method') === 'transfer')>Transfer</option>
+                            <option value="pos" @selected(old('payments.0.method') === 'pos')>POS</option>
+                        </select>
+                    </div>
+                    <div class="adm-field" style="margin:0;">
+                        <label class="adm-label" for="pay_account_single">Pay from account</label>
+                        <select class="adm-select" id="pay_account_single" name="payments[0][account_uuid]" required>
+                            @foreach ($accounts as $acc)
+                                @if ($acc['is_active'] ?? true)
+                                    <option value="{{ $acc['uuid'] }}" @selected(old('payments.0.account_uuid') === $acc['uuid'])>
+                                        {{ $acc['name'] }} — {{ number_format((float) ($acc['balance'] ?? 0), 2) }}
+                                    </option>
+                                @endif
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <input type="hidden" name="payments[0][amount]" id="pay_amount_single" value="0">
+            </div>
+            <div id="pay-split-fields" style="display:none;">
+                <div class="adm-grid cols-2">
+                    <div class="adm-field" style="margin:0;">
+                        <label class="adm-label" for="pay_cash_account">Cash account</label>
+                        <select class="adm-select" id="pay_cash_account" name="payments[0][account_uuid]">
+                            @foreach ($accounts as $acc)
+                                @if (($acc['is_active'] ?? true) && ($acc['kind'] ?? '') === 'cash')
+                                    <option value="{{ $acc['uuid'] }}">{{ $acc['name'] }}</option>
+                                @endif
+                            @endforeach
+                        </select>
+                        <input type="hidden" name="payments[0][method]" value="cash">
+                    </div>
+                    <div class="adm-field" style="margin:0;">
+                        <label class="adm-label" for="pay_cash_amount">Cash amount</label>
+                        <input class="adm-input" type="number" step="0.01" min="0.01" id="pay_cash_amount" value="{{ old('pay_cash_amount') }}">
+                    </div>
+                    <div class="adm-field" style="margin:0;">
+                        <label class="adm-label" for="pay_transfer_account">Transfer account</label>
+                        <select class="adm-select" id="pay_transfer_account" name="payments[1][account_uuid]">
+                            @foreach ($accounts as $acc)
+                                @if (($acc['is_active'] ?? true) && ($acc['kind'] ?? '') !== 'cash')
+                                    <option value="{{ $acc['uuid'] }}">{{ $acc['name'] }}</option>
+                                @endif
+                            @endforeach
+                        </select>
+                        <input type="hidden" name="payments[1][method]" value="transfer">
+                    </div>
+                    <div class="adm-field" style="margin:0;">
+                        <label class="adm-label">Transfer amount</label>
+                        <input class="adm-input" type="text" id="pay_transfer_amount_display" readonly placeholder="Auto (total − cash)">
+                        <input type="hidden" name="payments[1][amount]" id="pay_amount_transfer" value="0">
+                    </div>
+                </div>
+                <input type="hidden" name="payments[0][amount]" id="pay_amount_cash" value="0">
+            </div>
+        </div>
+
         <h2 style="font-family:Outfit,sans-serif;font-size:1.05rem;margin:1.25rem 0 0.75rem;">Lines</h2>
         <p class="adm-page-desc" style="margin-top:-0.25rem;">At least one line with product, quantity, and unit cost.</p>
 
@@ -162,6 +234,60 @@
     } else {
         addLine(null);
     }
+
+    var form = document.getElementById('purchase-form');
+    var paySplit = document.getElementById('pay-split');
+    var paySingle = document.getElementById('pay-single');
+    var paySplitFields = document.getElementById('pay-split-fields');
+    var payCashAmount = document.getElementById('pay_cash_amount');
+
+    function purchaseTotal() {
+        var sum = 0;
+        wrap.querySelectorAll('.purchase-line').forEach(function (block) {
+            var q = parseFloat(block.querySelector('.qty-input').value) || 0;
+            var c = parseFloat(block.querySelector('.unit-cost-input').value) || 0;
+            sum += q * c;
+        });
+        return Math.round(sum * 100) / 100;
+    }
+
+    function togglePayMode() {
+        var split = paySplit.checked;
+        paySingle.style.display = split ? 'none' : 'block';
+        paySplitFields.style.display = split ? 'block' : 'none';
+        if (split) {
+            paySingle.querySelectorAll('[name]').forEach(function (el) { el.disabled = true; });
+            paySplitFields.querySelectorAll('[name]').forEach(function (el) { el.disabled = false; });
+        } else {
+            paySingle.querySelectorAll('[name]').forEach(function (el) { el.disabled = false; });
+            paySplitFields.querySelectorAll('[name]').forEach(function (el) { el.disabled = true; });
+        }
+    }
+
+    paySplit.addEventListener('change', togglePayMode);
+    togglePayMode();
+
+    form.addEventListener('submit', function (e) {
+        var total = purchaseTotal();
+        if (total < 0.01) {
+            e.preventDefault();
+            alert('Add at least one line with quantity and unit cost.');
+            return;
+        }
+        if (paySplit.checked) {
+            var cash = parseFloat(payCashAmount.value) || 0;
+            var transfer = Math.round((total - cash) * 100) / 100;
+            if (cash < 0.01 || transfer < 0.01) {
+                e.preventDefault();
+                alert('Split amounts must leave at least 0.01 for cash and transfer.');
+                return;
+            }
+            document.getElementById('pay_amount_cash').value = cash.toFixed(2);
+            document.getElementById('pay_amount_transfer').value = transfer.toFixed(2);
+        } else {
+            document.getElementById('pay_amount_single').value = total.toFixed(2);
+        }
+    });
 })();
 </script>
 @endsection
