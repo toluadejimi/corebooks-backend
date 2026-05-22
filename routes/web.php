@@ -35,6 +35,7 @@ use App\Http\Middleware\EnsureBusinessMember;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'landing');
+Route::view('/privacy', 'privacy')->name('privacy');
 
 Route::get('/jobs/apply', [\App\Http\Controllers\Web\Public\JobSeekerPublicController::class, 'showForm'])
     ->name('public.jobs.apply');

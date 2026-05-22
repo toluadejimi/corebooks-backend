@@ -14,6 +14,7 @@
         </div>
         <div class="adm-actions">
             <button type="button" class="adm-icon-btn adm-theme-btn" aria-label="Color theme">◐</button>
+            <a href="{{ route('privacy') }}" class="adm-btn adm-btn-ghost" target="_blank" rel="noopener">Privacy</a>
             <a href="{{ route('admin.passkey-setup') }}" class="adm-btn adm-btn-ghost">Passkey</a>
             <span class="adm-user-email">{{ auth()->user()?->email }}</span>
             <form method="post" action="{{ route('logout') }}" style="display:inline;">@csrf

@@ -17,6 +17,7 @@
         <div class="adm-actions">
             <button type="button" class="adm-icon-btn adm-theme-btn" aria-label="Color theme">◐</button>
             <span class="adm-user-email">{{ $user->email }}</span>
+            <a href="{{ route('privacy') }}" class="adm-btn adm-btn-ghost" target="_blank" rel="noopener">Privacy</a>
             <a href="{{ route('admin.passkey-setup') }}" class="adm-btn adm-btn-ghost">Passkey</a>
             <form method="post" action="{{ route('logout') }}" style="display:inline;">@csrf
                 <button type="submit" class="adm-btn adm-btn-ghost">Sign out</button>
@@ -75,6 +76,7 @@
             </nav>
             <div class="adm-sidebar-foot">
                 <a href="{{ route('dashboard') }}">← All businesses</a>
+                <div style="margin-top:0.5rem;"><a href="{{ route('privacy') }}" target="_blank" rel="noopener">Privacy policy</a></div>
                 <div style="margin-top:0.5rem;opacity:0.8;">Disconnect workspace</div>
             </div>
         </aside>

@@ -238,7 +238,7 @@
 
 <footer>
     <div class="container">
-        {{ config('app.name') }} · Laravel {{ app()->version() }}
+        {{ config('app.name') }} · <a href="{{ route('privacy') }}">Privacy Policy</a> · Laravel {{ app()->version() }}
     </div>
 </footer>
 @endsection
