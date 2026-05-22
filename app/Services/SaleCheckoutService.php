@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Business;
 use App\Models\Customer;
 use App\Models\CustomerCreditEntry;
+use App\Models\GlAccount;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductBatch;
@@ -20,6 +21,7 @@ class SaleCheckoutService
 {
     public function __construct(
         private readonly GeneralLedgerService $ledger,
+        private readonly FundAccountService $fundAccounts,
     ) {}
 
     public function checkout(
@@ -40,7 +42,7 @@ class SaleCheckoutService
                     ->where('idempotency_key', $idempotencyKey)
                     ->first();
                 if ($existing) {
-                    return $existing->load(['lines.product', 'payments', 'customer']);
+                    return $existing->load(['lines.product', 'payments.glAccount', 'customer']);
                 }
             }
 
@@ -173,6 +175,9 @@ class SaleCheckoutService
             foreach ($payments as $p) {
                 $amount = (float) $p['amount'];
                 $method = $p['method'];
+                $glAccount = $method === 'credit'
+                    ? null
+                    : $this->paymentAccount($business, $method, $p['account_uuid'] ?? null);
                 if ($method === 'credit') {
                     $creditTotal += $amount;
                 }
@@ -182,6 +187,7 @@ class SaleCheckoutService
                     'uuid' => (string) Str::uuid(),
                     'method' => $method,
                     'amount' => $amount,
+                    'gl_account_id' => $glAccount?->id,
                     'meta' => $p['meta'] ?? null,
                 ]);
                 if ($method === 'credit') {
@@ -227,7 +233,7 @@ class SaleCheckoutService
                 }
             }
 
-            $sale = $sale->fresh(['lines.product', 'payments', 'customer']);
+            $sale = $sale->fresh(['lines.product', 'payments.glAccount', 'customer']);
             $this->ledger->postSaleJournal($business, $sale);
 
             return $sale;
@@ -269,6 +275,22 @@ class SaleCheckoutService
     private function nextReceiptNo(Business $business): string
     {
         return 'RCP-'.$business->id.'-'.now()->format('YmdHis').'-'.strtoupper(Str::random(4));
+    }
+
+    private function paymentAccount(Business $business, string $method, ?string $accountUuid): GlAccount
+    {
+        if ($accountUuid !== null && trim($accountUuid) !== '') {
+            return $this->fundAccounts->resolveGlAccount($business, $accountUuid);
+        }
+
+        $code = $method === 'cash'
+            ? GeneralLedgerService::CODE_CASH
+            : GeneralLedgerService::CODE_BANK;
+
+        return GlAccount::query()
+            ->where('business_id', $business->id)
+            ->where('code', $code)
+            ->firstOrFail();
     }
 
     /**

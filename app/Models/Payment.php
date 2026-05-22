@@ -13,6 +13,7 @@ class Payment extends Model
         'uuid',
         'method',
         'amount',
+        'gl_account_id',
         'meta',
     ];
 
@@ -27,5 +28,10 @@ class Payment extends Model
     public function sale(): BelongsTo
     {
         return $this->belongsTo(Sale::class);
+    }
+
+    public function glAccount(): BelongsTo
+    {
+        return $this->belongsTo(GlAccount::class, 'gl_account_id');
     }
 }

@@ -123,6 +123,8 @@ Route::prefix('v1')->group(function (): void {
                     Route::get('gl-trial-balance', [GlReportController::class, 'trialBalance']);
 
                     Route::get('accounts', [AccountController::class, 'index']);
+                    Route::get('accounts/{glAccountUuid}/transactions', [AccountController::class, 'transactions'])
+                        ->whereUuid('glAccountUuid');
                     Route::middleware('business.role:manager')->group(function (): void {
                         Route::post('accounts', [AccountController::class, 'store']);
                         Route::post('accounts/transfer', [AccountController::class, 'transfer']);

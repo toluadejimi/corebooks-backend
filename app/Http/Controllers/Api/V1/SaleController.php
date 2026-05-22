@@ -20,7 +20,7 @@ class SaleController extends Controller
     {
         $query = Sale::query()
             ->where('business_id', $business->id)
-            ->with(['lines', 'payments', 'customer:id,uuid,name,is_walk_in']);
+            ->with(['lines', 'payments.glAccount', 'customer:id,uuid,name,is_walk_in']);
 
         $customerUuid = trim((string) $request->query('customer_uuid', ''));
         if ($customerUuid !== '') {
@@ -38,7 +38,7 @@ class SaleController extends Controller
     {
         abort_if($sale->business_id !== $business->id, 404);
 
-        $sale->load(['lines.product', 'payments', 'customer']);
+        $sale->load(['lines.product', 'payments.glAccount', 'customer']);
 
         return response()->json(['data' => $this->saleResponse($sale)]);
     }
@@ -57,6 +57,7 @@ class SaleController extends Controller
             'payments' => ['required', 'array', 'min:1'],
             'payments.*.method' => ['required', 'string', 'in:cash,transfer,pos,credit'],
             'payments.*.amount' => ['required', 'numeric', 'min:0'],
+            'payments.*.account_uuid' => ['nullable', 'string', 'max:128'],
             'payments.*.meta' => ['nullable', 'array'],
             'discount_total' => ['nullable', 'numeric', 'min:0'],
             'idempotency_key' => ['nullable', 'string', 'max:64'],
@@ -111,6 +112,8 @@ class SaleController extends Controller
                 'uuid' => $p->uuid,
                 'method' => $p->method,
                 'amount' => (float) $p->amount,
+                'account_uuid' => $p->glAccount?->uuid,
+                'account_name' => $p->glAccount?->name,
             ]),
         ];
     }

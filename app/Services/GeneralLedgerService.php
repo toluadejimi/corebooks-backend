@@ -136,24 +136,37 @@ final class GeneralLedgerService
     public function postSaleJournal(Business $business, Sale $sale): void
     {
         $this->ensureDefaultChart($business);
-        $sale->loadMissing('payments');
+        $sale->loadMissing('payments.glAccount');
 
         $key = 'sale:'.$sale->uuid;
         if (JournalEntry::query()->where('business_id', $business->id)->where('idempotency_key', $key)->exists()) {
             return;
         }
 
-        $cash = 0.0;
-        $bank = 0.0;
         $credit = 0.0;
+        $assetLines = [];
         foreach ($sale->payments as $p) {
             $a = (float) $p->amount;
-            if ($p->method === 'cash') {
-                $cash += $a;
-            } elseif ($p->method === 'credit') {
+            if ($a <= 0) {
+                continue;
+            }
+            if ($p->method === 'credit') {
                 $credit += $a;
             } else {
-                $bank += $a;
+                $gl = $p->glAccount ?: $this->account(
+                    $business,
+                    $p->method === 'cash' ? self::CODE_CASH : self::CODE_BANK,
+                );
+                $assetKey = (int) $gl->id;
+                if (! isset($assetLines[$assetKey])) {
+                    $assetLines[$assetKey] = [
+                        'gl_account_id' => $gl->id,
+                        'debit' => 0.0,
+                        'credit' => 0,
+                        'description' => 'Sale payment to '.$gl->name,
+                    ];
+                }
+                $assetLines[$assetKey]['debit'] = round((float) $assetLines[$assetKey]['debit'] + $a, 2);
             }
         }
 
@@ -163,13 +176,11 @@ final class GeneralLedgerService
         $netSales = round(max(0, $subtotal - $discount), 2);
         $grand = (float) $sale->grand_total;
 
-        $aCash = $this->account($business, self::CODE_CASH);
-        $aBank = $this->account($business, self::CODE_BANK);
         $aAr = $this->account($business, self::CODE_AR);
         $aSales = $this->account($business, self::CODE_SALES);
         $aVat = $this->account($business, self::CODE_VAT_PAYABLE);
 
-        DB::transaction(function () use ($business, $sale, $key, $cash, $bank, $credit, $netSales, $tax, $grand, $aCash, $aBank, $aAr, $aSales, $aVat): void {
+        DB::transaction(function () use ($business, $sale, $key, $assetLines, $credit, $netSales, $tax, $grand, $aAr, $aSales, $aVat): void {
             $entry = JournalEntry::query()->create([
                 'business_id' => $business->id,
                 'uuid' => (string) Str::uuid(),
@@ -181,13 +192,7 @@ final class GeneralLedgerService
                 'idempotency_key' => $key,
             ]);
 
-            $lines = [];
-            if ($cash > 0) {
-                $lines[] = ['gl_account_id' => $aCash->id, 'debit' => $cash, 'credit' => 0, 'description' => 'Cash takings'];
-            }
-            if ($bank > 0) {
-                $lines[] = ['gl_account_id' => $aBank->id, 'debit' => $bank, 'credit' => 0, 'description' => 'Card / transfer takings'];
-            }
+            $lines = array_values($assetLines);
             if ($credit > 0) {
                 $lines[] = ['gl_account_id' => $aAr->id, 'debit' => $credit, 'credit' => 0, 'description' => 'On credit (Accounts receivable)'];
             }

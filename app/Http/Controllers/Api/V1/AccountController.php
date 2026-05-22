@@ -23,6 +23,17 @@ class AccountController extends Controller
         ]);
     }
 
+    public function transactions(Request $request, Business $business, string $glAccountUuid): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->funds->transactions(
+                $business,
+                $glAccountUuid,
+                $request->integer('limit', 100),
+            ),
+        ]);
+    }
+
     public function store(Request $request, Business $business): JsonResponse
     {
         $data = $request->validate([

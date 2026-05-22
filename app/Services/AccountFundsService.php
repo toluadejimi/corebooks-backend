@@ -6,6 +6,7 @@ use App\Models\BankAccount;
 use App\Models\Business;
 use App\Models\GlAccount;
 use App\Models\JournalEntry;
+use App\Models\JournalLine;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -267,6 +268,80 @@ final class AccountFundsService
                 ['gl_account_id' => $from->id, 'debit' => 0, 'credit' => $amount, 'description' => 'Withdrawal from '.$from->name],
             ],
         );
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function transactions(Business $business, string $glUuid, int $limit = 100): array
+    {
+        $gl = $this->assetAccount($business, $glUuid);
+        $limit = max(1, min($limit, 200));
+
+        $recent = JournalLine::query()
+            ->where('gl_account_id', $gl->id)
+            ->whereHas('entry', fn ($q) => $q->where('business_id', $business->id))
+            ->with('entry')
+            ->join('journal_entries', 'journal_entries.id', '=', 'journal_lines.journal_entry_id')
+            ->orderByDesc('journal_entries.entry_date')
+            ->orderByDesc('journal_lines.id')
+            ->select('journal_lines.*')
+            ->limit($limit)
+            ->get()
+            ->reverse()
+            ->values();
+
+        if ($recent->isEmpty()) {
+            return [];
+        }
+
+        /** @var JournalLine $first */
+        $first = $recent->first();
+        $firstDate = $first->entry?->entry_date?->toDateString();
+        $opening = 0.0;
+        if ($firstDate !== null) {
+            $row = DB::table('journal_lines')
+                ->join('journal_entries', 'journal_entries.id', '=', 'journal_lines.journal_entry_id')
+                ->where('journal_entries.business_id', $business->id)
+                ->where('journal_lines.gl_account_id', $gl->id)
+                ->where(function ($q) use ($firstDate, $first): void {
+                    $q->whereDate('journal_entries.entry_date', '<', $firstDate)
+                        ->orWhere(function ($q2) use ($firstDate, $first): void {
+                            $q2->whereDate('journal_entries.entry_date', $firstDate)
+                                ->where('journal_lines.id', '<', $first->id);
+                        });
+                })
+                ->selectRaw('COALESCE(SUM(debit), 0) as dr, COALESCE(SUM(credit), 0) as cr')
+                ->first();
+
+            $opening = round((float) ($row?->dr ?? 0) - (float) ($row?->cr ?? 0), 2);
+        }
+
+        $running = $opening;
+        $rows = [];
+        foreach ($recent as $line) {
+            $amount = round((float) $line->debit - (float) $line->credit, 2);
+            $before = $running;
+            $running = round($running + $amount, 2);
+            $entry = $line->entry;
+            $rows[] = [
+                'uuid' => $line->uuid,
+                'journal_entry_uuid' => $entry?->uuid,
+                'date' => $entry?->entry_date?->toDateString(),
+                'description' => $line->description ?: $entry?->memo,
+                'source_type' => $entry?->source_type,
+                'source_uuid' => $entry?->source_uuid,
+                'debit' => (float) $line->debit,
+                'credit' => (float) $line->credit,
+                'amount' => $amount,
+                'amount_before' => $before,
+                'amount_after' => $running,
+                'balance_before' => $before,
+                'balance_after' => $running,
+            ];
+        }
+
+        return array_reverse($rows);
     }
 
     private function assetAccount(Business $business, string $glUuid): GlAccount
