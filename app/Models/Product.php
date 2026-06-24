@@ -23,6 +23,7 @@ class Product extends Model
         'selling_price',
         'low_stock_threshold',
         'track_batches',
+        'track_stock',
         'vat_rate',
         'version',
     ];
@@ -33,6 +34,7 @@ class Product extends Model
             'cost_price' => 'decimal:2',
             'selling_price' => 'decimal:2',
             'track_batches' => 'boolean',
+            'track_stock' => 'boolean',
             'vat_rate' => 'decimal:2',
             'available_online' => 'boolean',
             'gallery_urls' => 'array',

@@ -64,6 +64,7 @@ class ProductController extends Controller
             'selling_price' => ['nullable', 'numeric', 'min:0'],
             'low_stock_threshold' => ['nullable', 'integer', 'min:0'],
             'track_batches' => ['boolean'],
+            'track_stock' => ['boolean'],
             'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'image_url' => ['nullable', 'string', 'max:2048'],
             'available_online' => ['sometimes', 'boolean'],
@@ -111,21 +112,24 @@ class ProductController extends Controller
             'selling_price' => $data['selling_price'] ?? 0,
             'low_stock_threshold' => $data['low_stock_threshold'] ?? 0,
             'track_batches' => $data['track_batches'] ?? false,
+            'track_stock' => $data['track_stock'] ?? true,
             'vat_rate' => $data['vat_rate'] ?? $business->default_vat_rate,
             'version' => 1,
         ]);
 
         $qty = (float) ($data['initial_qty'] ?? 0);
-        ProductBatch::query()->create([
-            'business_id' => $business->id,
-            'product_id' => $product->id,
-            'location_id' => $location->id,
-            'uuid' => (string) Str::uuid(),
-            'qty' => $qty,
-            'expiry_date' => $data['expiry_date'] ?? null,
-            'cost_price_snapshot' => $product->cost_price,
-            'version' => 1,
-        ]);
+        if ($product->track_stock) {
+            ProductBatch::query()->create([
+                'business_id' => $business->id,
+                'product_id' => $product->id,
+                'location_id' => $location->id,
+                'uuid' => (string) Str::uuid(),
+                'qty' => $qty,
+                'expiry_date' => $data['expiry_date'] ?? null,
+                'cost_price_snapshot' => $product->cost_price,
+                'version' => 1,
+            ]);
+        }
 
         return response()->json(['data' => $this->productResponse($product->fresh())], 201);
     }
@@ -246,6 +250,7 @@ class ProductController extends Controller
             'selling_price' => (float) $product->selling_price,
             'low_stock_threshold' => (int) $product->low_stock_threshold,
             'track_batches' => (bool) $product->track_batches,
+            'track_stock' => (bool) $product->track_stock,
             'vat_rate' => $product->vat_rate !== null ? (float) $product->vat_rate : null,
             'stock_qty' => (float) ($product->batches_sum_qty ?? 0),
             'version' => (int) $product->version,

@@ -88,6 +88,23 @@ class SaleCheckoutService
                 $lineTax = round($lineSubtotal * ($taxRate / 100), 2);
                 $lineTotal = $lineSubtotal + $lineTax;
 
+                if (! $product->track_stock) {
+                    SaleLine::query()->create([
+                        'sale_id' => $sale->id,
+                        'product_id' => $product->id,
+                        'product_batch_id' => null,
+                        'qty' => $qty,
+                        'unit_price' => $unitPrice,
+                        'tax_rate' => $taxRate,
+                        'line_total' => $lineTotal,
+                    ]);
+
+                    $subtotal += $lineSubtotal;
+                    $taxTotal += $lineTax;
+
+                    continue;
+                }
+
                 $allocations = $this->allocateBatches(
                     $business,
                     $product,

@@ -72,6 +72,13 @@
                 <input class="adm-input" id="low_stock_threshold" name="low_stock_threshold" type="number" min="0" value="{{ old('low_stock_threshold', $product->low_stock_threshold ?? 0) }}">
             </div>
         </div>
+        <div class="adm-field">
+            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                <input type="hidden" name="track_stock" value="0">
+                <input type="checkbox" name="track_stock" value="1" @checked(old('track_stock', $product->track_stock ?? true))>
+                Track inventory (uncheck for services / items sold without stock)
+            </label>
+        </div>
         @if(!$editing)
             <div class="adm-grid cols-2">
                 <div class="adm-field">

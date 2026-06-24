@@ -62,6 +62,7 @@ class ProductWebController extends Controller
             'cost_price' => ['nullable', 'numeric', 'min:0'],
             'selling_price' => ['nullable', 'numeric', 'min:0'],
             'low_stock_threshold' => ['nullable', 'integer', 'min:0'],
+            'track_stock' => ['sometimes', 'boolean'],
             'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'initial_qty' => ['nullable', 'numeric', 'min:0'],
             'location_uuid' => ['nullable', 'uuid'],
@@ -86,20 +87,23 @@ class ProductWebController extends Controller
             'selling_price' => $data['selling_price'] ?? 0,
             'low_stock_threshold' => $data['low_stock_threshold'] ?? 0,
             'track_batches' => false,
+            'track_stock' => $request->boolean('track_stock', true),
             'vat_rate' => $data['vat_rate'] ?? $business->default_vat_rate,
             'version' => 1,
         ]);
 
-        ProductBatch::query()->create([
-            'business_id' => $business->id,
-            'product_id' => $product->id,
-            'location_id' => $location->id,
-            'uuid' => (string) Str::uuid(),
-            'qty' => (float) ($data['initial_qty'] ?? 0),
-            'expiry_date' => $data['expiry_date'] ?? null,
-            'cost_price_snapshot' => $product->cost_price,
-            'version' => 1,
-        ]);
+        if ($product->track_stock) {
+            ProductBatch::query()->create([
+                'business_id' => $business->id,
+                'product_id' => $product->id,
+                'location_id' => $location->id,
+                'uuid' => (string) Str::uuid(),
+                'qty' => (float) ($data['initial_qty'] ?? 0),
+                'expiry_date' => $data['expiry_date'] ?? null,
+                'cost_price_snapshot' => $product->cost_price,
+                'version' => 1,
+            ]);
+        }
 
         return redirect()
             ->route('admin.b.products.index', $business)
@@ -151,6 +155,7 @@ class ProductWebController extends Controller
             'cost_price' => ['sometimes', 'numeric', 'min:0'],
             'selling_price' => ['sometimes', 'numeric', 'min:0'],
             'low_stock_threshold' => ['sometimes', 'integer', 'min:0'],
+            'track_stock' => ['sometimes', 'boolean'],
             'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
 
@@ -160,6 +165,9 @@ class ProductWebController extends Controller
 
         $keys = ['name', 'sku', 'barcode', 'category_id', 'image_url', 'cost_price', 'selling_price', 'low_stock_threshold', 'vat_rate'];
         $product->fill(array_intersect_key($data, array_flip($keys)));
+        if ($request->has('track_stock')) {
+            $product->track_stock = $request->boolean('track_stock');
+        }
         $product->version = $product->version + 1;
         $product->save();
 

@@ -91,6 +91,7 @@ class SyncController extends Controller
                     'selling_price' => $payload['selling_price'] ?? 0,
                     'low_stock_threshold' => $payload['low_stock_threshold'] ?? 0,
                     'track_batches' => $payload['track_batches'] ?? false,
+                    'track_stock' => $payload['track_stock'] ?? true,
                     'vat_rate' => $payload['vat_rate'] ?? $business->default_vat_rate,
                     'version' => ($product?->version ?? 0) + 1,
                 ];
@@ -168,6 +169,7 @@ class SyncController extends Controller
                     'selling_price' => (float) $p->selling_price,
                     'low_stock_threshold' => (int) $p->low_stock_threshold,
                     'track_batches' => (bool) $p->track_batches,
+                    'track_stock' => (bool) $p->track_stock,
                     'vat_rate' => $p->vat_rate !== null ? (float) $p->vat_rate : null,
                     'stock_qty' => $stock,
                     'version' => (int) $p->version,
