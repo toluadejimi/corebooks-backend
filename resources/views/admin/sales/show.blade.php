@@ -3,7 +3,10 @@
 @section('title', 'Sale '.$sale->receipt_no.' — '.$business->name)
 
 @section('content')
-<p style="margin:0 0 1rem;"><a href="{{ route('admin.b.sales.index', $business) }}" class="adm-btn adm-btn-ghost" style="padding:0.35rem 0.65rem;font-size:0.85rem;">← Sales</a></p>
+<p style="margin:0 0 1rem;display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;">
+    <a href="{{ route('admin.b.sales.index', $business) }}" class="adm-btn adm-btn-ghost" style="padding:0.35rem 0.65rem;font-size:0.85rem;">← Sales</a>
+    <a href="{{ route('admin.b.pos.receipt', [$business, $sale->uuid]) }}" class="adm-btn adm-btn-primary" style="padding:0.35rem 0.65rem;font-size:0.85rem;" target="_blank" rel="noopener">Print receipt</a>
+</p>
 
 <h1 class="adm-page-title">Sale breakdown</h1>
 <p class="adm-page-desc">

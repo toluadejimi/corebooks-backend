@@ -15,6 +15,7 @@ use App\Http\Controllers\Web\Admin\LoanWorkspaceWebController;
 use App\Http\Controllers\Web\Admin\PayrollWebController;
 use App\Http\Controllers\Web\Admin\PlatformMaintenanceWebController;
 use App\Http\Controllers\Web\Admin\PortfolioController;
+use App\Http\Controllers\Web\Admin\PosWebController;
 use App\Http\Controllers\Web\Admin\ProductWebController;
 use App\Http\Controllers\Web\Admin\PurchaseWebController;
 use App\Http\Controllers\Web\Admin\ReportsWebController;
@@ -222,6 +223,13 @@ Route::middleware('auth')->group(function (): void {
             // Plain string UUID + manual resolve: avoids implicit/child-binding pitfalls and
             // gracefully redirects when a stale GL link or bookmark points at a missing sale.
             Route::get('/sales/{saleUuid}', [SalesWebController::class, 'show'])->name('sales.show');
+
+            Route::get('/pos', [PosWebController::class, 'index'])->name('pos.index');
+            Route::post('/pos/checkout', [PosWebController::class, 'checkout'])->name('pos.checkout');
+            Route::post('/pos/quick-product', [PosWebController::class, 'quickProduct'])->name('pos.quick-product');
+            Route::get('/pos/receipt/{saleUuid}', [PosWebController::class, 'receipt'])
+                ->whereUuid('saleUuid')
+                ->name('pos.receipt');
 
             Route::get('/suppliers', [SupplierWebController::class, 'index'])->name('suppliers.index');
             Route::middleware('business.role:manager')->group(function (): void {

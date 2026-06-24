@@ -55,6 +55,9 @@
                 <a href="{{ route('admin.b.suppliers.index', $business) }}" class="{{ request()->routeIs('admin.b.suppliers.*') ? 'active' : '' }}">
                     <span class="adm-nav-icon">☷</span> Suppliers
                 </a>
+                <a href="{{ route('admin.b.pos.index', $business) }}" class="{{ request()->routeIs('admin.b.pos.*') ? 'active' : '' }}">
+                    <span class="adm-nav-icon">⊕</span> Point of sale
+                </a>
                 <a href="{{ route('admin.b.sales.index', $business) }}" class="{{ request()->routeIs('admin.b.sales.*') ? 'active' : '' }}">
                     <span class="adm-nav-icon">▸</span> Sales
                 </a>
