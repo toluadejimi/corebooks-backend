@@ -102,7 +102,7 @@ class PosWebController extends Controller
             'payments' => ['required', 'array', 'min:1'],
             'payments.*.method' => ['required', 'string', 'in:cash,transfer,pos,credit'],
             'payments.*.amount' => ['required', 'numeric', 'min:0'],
-            'payments.*.account_uuid' => ['nullable', 'uuid'],
+            'payments.*.account_uuid' => ['nullable', 'string', 'max:128'],
             'discount_total' => ['nullable', 'numeric', 'min:0'],
             'idempotency_key' => ['nullable', 'string', 'max:64'],
             'sold_at' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:2020-01-01', 'before_or_equal:today'],

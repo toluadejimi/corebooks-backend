@@ -555,7 +555,11 @@
                 unit_price: l.unit_price,
                 tax_rate: l.tax_rate,
             })),
-            payments: [{ method, amount: t.grand, account_uuid: el('pay-account').value }],
+            payments: [{
+                method,
+                amount: t.grand,
+                ...(el('pay-account').value ? { account_uuid: el('pay-account').value } : {}),
+            }],
             discount_total: discount,
             sold_at: el('pay-date').value || null,
             idempotency_key: crypto.randomUUID(),
