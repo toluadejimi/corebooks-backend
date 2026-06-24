@@ -1,109 +1,292 @@
-@extends('layouts.admin-workspace')
+@extends('layouts.admin-pos')
 
 @section('title', 'Point of sale — '.$business->name)
 
 @section('content')
 <style>
-    .pos-shell { display: grid; grid-template-columns: 1fr min(360px, 38vw); gap: 1rem; align-items: start; }
-    @media (max-width: 960px) { .pos-shell { grid-template-columns: 1fr; } }
-    .pos-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center; }
-    .pos-toolbar .adm-input, .pos-toolbar .adm-select { min-width: 140px; margin: 0; }
-    .pos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 0.6rem; max-height: calc(100vh - 220px); overflow: auto; padding-right: 0.25rem; }
-    .pos-product { border: 1px solid var(--adm-border); border-radius: 12px; padding: 0.65rem; background: var(--adm-card); cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; text-align: left; }
-    .pos-product:hover:not(:disabled) { border-color: var(--adm-accent); box-shadow: 0 4px 14px rgba(37,99,235,0.12); }
-    .pos-product:disabled { opacity: 0.55; cursor: not-allowed; }
-    .pos-product .name { font-weight: 600; font-size: 0.88rem; line-height: 1.25; margin-bottom: 0.25rem; }
-    .pos-product .meta { font-size: 0.75rem; color: var(--adm-muted); }
-    .pos-product .price { font-family: Outfit, sans-serif; font-weight: 700; margin-top: 0.35rem; }
-    .pos-cart { position: sticky; top: 0.5rem; border: 1px solid var(--adm-border); border-radius: 14px; background: var(--adm-card); padding: 1rem; display: flex; flex-direction: column; max-height: calc(100vh - 120px); }
-    .pos-cart-lines { flex: 1; overflow: auto; margin: 0.75rem 0; min-height: 120px; }
-    .pos-cart-line { display: grid; grid-template-columns: 1fr auto; gap: 0.35rem 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--adm-border); font-size: 0.88rem; }
+    .pos-page { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; }
+    .pos-header { flex-shrink: 0; margin-bottom: 0.5rem; }
+    .pos-header .adm-page-title { font-size: 1.15rem; margin: 0 0 0.15rem; }
+    .pos-header .adm-page-desc { font-size: 0.78rem; margin: 0; line-height: 1.3; }
+
+    .pos-shell {
+        flex: 1;
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 1fr min(340px, 36vw);
+        gap: 0.65rem;
+        overflow: hidden;
+    }
+
+    .pos-products-pane {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .pos-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-bottom: 0.5rem;
+        align-items: center;
+        flex-shrink: 0;
+    }
+    .pos-toolbar .adm-input,
+    .pos-toolbar .adm-select {
+        min-width: 0;
+        margin: 0;
+        font-size: 0.88rem;
+        padding: 0.45rem 0.55rem;
+    }
+    .pos-toolbar .pos-search { flex: 1 1 140px; }
+    .pos-toolbar .pos-filter { flex: 1 1 100px; max-width: 140px; }
+    .pos-toolbar .pos-quick-btn { flex-shrink: 0; padding: 0.45rem 0.6rem; font-size: 0.82rem; }
+
+    .pos-grid {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+        gap: 0.45rem;
+        padding-bottom: 0.35rem;
+        align-content: start;
+    }
+
+    .pos-product {
+        border: 1px solid var(--adm-border);
+        border-radius: 10px;
+        padding: 0.55rem;
+        background: var(--adm-card);
+        cursor: pointer;
+        transition: border-color 0.15s;
+        text-align: left;
+        width: 100%;
+        min-width: 0;
+    }
+    .pos-product:active:not(:disabled) { border-color: var(--adm-accent); background: var(--adm-accent-soft); }
+    .pos-product:disabled { opacity: 0.5; cursor: not-allowed; }
+    .pos-product .name {
+        font-weight: 600;
+        font-size: 0.82rem;
+        line-height: 1.2;
+        margin-bottom: 0.2rem;
+        word-break: break-word;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .pos-product .meta { font-size: 0.68rem; color: var(--adm-muted); }
+    .pos-product .price { font-family: Outfit, sans-serif; font-weight: 700; font-size: 0.88rem; margin-top: 0.25rem; }
+
+    .pos-cart {
+        min-height: 0;
+        border: 1px solid var(--adm-border);
+        border-radius: 12px;
+        background: var(--adm-card);
+        padding: 0.65rem;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .pos-cart-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+    .pos-cart-head strong { font-family: Outfit, sans-serif; font-size: 0.95rem; }
+
+    .pos-cart .adm-field { margin: 0.45rem 0 0; flex-shrink: 0; }
+    .pos-cart .adm-label { font-size: 0.75rem; margin-bottom: 0.15rem; }
+    .pos-cart .adm-select { font-size: 0.85rem; padding: 0.4rem 0.5rem; }
+
+    .pos-cart-lines {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        margin: 0.45rem 0;
+    }
+
+    .pos-cart-line {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.25rem 0.4rem;
+        padding: 0.4rem 0;
+        border-bottom: 1px solid var(--adm-border);
+        font-size: 0.82rem;
+    }
     .pos-cart-line:last-child { border-bottom: none; }
-    .pos-qty { display: inline-flex; align-items: center; gap: 0.25rem; }
-    .pos-qty button { width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--adm-border); background: var(--adm-bg); cursor: pointer; }
-    .pos-totals { border-top: 1px solid var(--adm-border); padding-top: 0.75rem; font-size: 0.9rem; }
-    .pos-totals .grand { font-size: 1.2rem; font-family: Outfit, sans-serif; font-weight: 800; }
-    .pos-modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 200; display: none; align-items: center; justify-content: center; padding: 1rem; }
+    .pos-line-name { word-break: break-word; font-size: 0.85rem; }
+    .pos-line-total { font-size: 0.82rem; white-space: nowrap; }
+
+    .pos-qty { display: inline-flex; align-items: center; gap: 0.2rem; }
+    .pos-qty button {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid var(--adm-border);
+        background: var(--adm-bg);
+        cursor: pointer;
+        font-size: 1rem;
+        line-height: 1;
+        touch-action: manipulation;
+    }
+
+    .pos-totals {
+        border-top: 1px solid var(--adm-border);
+        padding-top: 0.5rem;
+        font-size: 0.82rem;
+        flex-shrink: 0;
+    }
+    .pos-totals .grand { font-size: 1.05rem; font-family: Outfit, sans-serif; font-weight: 800; }
+
+    .pos-checkout-btn {
+        width: 100%;
+        margin-top: 0.55rem;
+        flex-shrink: 0;
+        padding: 0.65rem;
+        font-size: 0.95rem;
+        touch-action: manipulation;
+    }
+
+    .pos-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15,23,42,0.5);
+        z-index: 300;
+        display: none;
+        align-items: flex-end;
+        justify-content: center;
+        padding: 0;
+    }
     .pos-modal-backdrop.open { display: flex; }
-    .pos-modal { background: var(--adm-card); border-radius: 14px; width: min(480px, 100%); max-height: 90vh; overflow: auto; padding: 1.25rem; border: 1px solid var(--adm-border); }
-    .pos-status { font-size: 0.85rem; margin-top: 0.5rem; min-height: 1.2em; }
+    .pos-modal {
+        background: var(--adm-card);
+        border-radius: 16px 16px 0 0;
+        width: 100%;
+        max-width: 520px;
+        max-height: 92dvh;
+        overflow-y: auto;
+        padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+        border: 1px solid var(--adm-border);
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .pos-status { font-size: 0.82rem; margin-top: 0.35rem; min-height: 1em; flex-shrink: 0; }
     .pos-status.err { color: #b91c1c; }
     .pos-status.ok { color: #15803d; }
+
+    /* S60 / narrow terminal: stack with fixed bottom cart */
+    @media (max-width: 900px), (max-height: 820px) {
+        .pos-header .adm-page-desc { display: none; }
+        .pos-shell {
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr auto;
+            gap: 0.4rem;
+        }
+        .pos-products-pane { min-height: 0; }
+        .pos-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+        .pos-cart {
+            max-height: min(46dvh, 360px);
+            border-radius: 12px 12px 0 0;
+            box-shadow: 0 -6px 24px rgba(15,23,42,0.1);
+        }
+        .pos-toolbar .pos-filter { max-width: none; flex: 1 1 45%; }
+    }
+
+    @media (min-width: 901px) and (min-height: 821px) {
+        .pos-modal-backdrop { align-items: center; padding: 1rem; }
+        .pos-modal { border-radius: 14px; max-height: 90vh; }
+    }
 </style>
 
-<h1 class="adm-page-title">Point of sale</h1>
-<p class="adm-page-desc">Sell from the browser. Checkout posts to sales &amp; transactions. Print receipts on 58mm thermal printers (Horizon Pay S60, Sunmi, etc.) via the built-in print dialog.</p>
+<div class="pos-page">
+    <div class="pos-header">
+        <h1 class="adm-page-title">Point of sale</h1>
+        <p class="adm-page-desc">Tap products to sell. Receipts print on the S60 built-in printer at checkout.</p>
+    </div>
 
-<div class="pos-shell">
-    <section>
-        <div class="pos-toolbar">
-            <input type="search" id="pos-search" class="adm-input" placeholder="Search name, SKU, barcode…" style="flex:1;min-width:180px;">
-            <select id="pos-category" class="adm-select">
-                <option value="">All categories</option>
-                <option value="__uncat__">Uncategorized</option>
-                @foreach($categories as $cat)
-                    <option value="{{ $cat->uuid }}">{{ $cat->name }}</option>
-                @endforeach
-            </select>
-            <select id="pos-location" class="adm-select" title="Branch">
-                @foreach($locations as $loc)
-                    <option value="{{ $loc->uuid }}" @selected($loc->uuid === $location->uuid)>{{ $loc->name }}</option>
-                @endforeach
-            </select>
-            <button type="button" class="adm-btn adm-btn-ghost" id="pos-quick-add">+ Quick sell</button>
-        </div>
-        <div id="pos-grid" class="pos-grid" aria-live="polite"></div>
-        <p id="pos-empty" class="adm-page-desc" style="display:none;margin-top:1rem;">No products match your search.</p>
-    </section>
-
-    <aside class="pos-cart">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;">
-            <strong style="font-family:Outfit,sans-serif;font-size:1.05rem;">Cart</strong>
-            <button type="button" class="adm-btn adm-btn-ghost" id="pos-clear" style="padding:0.25rem 0.5rem;font-size:0.8rem;">Clear</button>
-        </div>
-
-        <div class="adm-field" style="margin:0.75rem 0 0;">
-            <label class="adm-label" for="pos-customer">Customer</label>
-            <select id="pos-customer" class="adm-select">
-                @foreach($customers as $c)
-                    <option value="{{ $c->uuid }}" @selected($c->is_walk_in) data-walk-in="{{ $c->is_walk_in ? '1' : '0' }}" data-credit="{{ $c->credit_enabled ? '1' : '0' }}">{{ $c->name }}</option>
-                @endforeach
-            </select>
-        </div>
-
-        <div id="pos-cart-lines" class="pos-cart-lines">
-            <p class="adm-page-desc" style="margin:0;">Tap products to add them here.</p>
-        </div>
-
-        <div class="pos-totals">
-            <div style="display:flex;justify-content:space-between;"><span>Subtotal (ex VAT)</span><span id="pos-sub-ex">{{ $currencySymbol }}0.00</span></div>
-            <div style="display:flex;justify-content:space-between;margin-top:0.25rem;"><span>VAT</span><span id="pos-tax">{{ $currencySymbol }}0.00</span></div>
-            <div style="display:flex;justify-content:space-between;margin-top:0.25rem;"><span>Discount</span><span id="pos-discount-preview">{{ $currencySymbol }}0.00</span></div>
-            <div style="display:flex;justify-content:space-between;margin-top:0.5rem;" class="grand">
-                <span>Total</span><span id="pos-grand">{{ $currencySymbol }}0.00</span>
+    <div class="pos-shell">
+        <section class="pos-products-pane">
+            <div class="pos-toolbar">
+                <input type="search" id="pos-search" class="adm-input pos-search" placeholder="Search…" autocomplete="off">
+                <select id="pos-category" class="adm-select pos-filter">
+                    <option value="">All categories</option>
+                    <option value="__uncat__">Uncategorized</option>
+                    @foreach($categories as $cat)
+                        <option value="{{ $cat->uuid }}">{{ $cat->name }}</option>
+                    @endforeach
+                </select>
+                <select id="pos-location" class="adm-select pos-filter" title="Branch">
+                    @foreach($locations as $loc)
+                        <option value="{{ $loc->uuid }}" @selected($loc->uuid === $location->uuid)>{{ $loc->name }}</option>
+                    @endforeach
+                </select>
+                <button type="button" class="adm-btn adm-btn-ghost pos-quick-btn" id="pos-quick-add">+ Quick</button>
             </div>
-        </div>
+            <div id="pos-grid" class="pos-grid" aria-live="polite"></div>
+            <p id="pos-empty" class="adm-page-desc" style="display:none;margin:0.5rem 0 0;">No products match.</p>
+        </section>
 
-        <button type="button" class="adm-btn adm-btn-primary" id="pos-checkout" style="width:100%;margin-top:0.85rem;" disabled>Checkout</button>
-        <p id="pos-status" class="pos-status"></p>
-    </aside>
+        <aside class="pos-cart">
+            <div class="pos-cart-head">
+                <strong>Cart</strong>
+                <button type="button" class="adm-btn adm-btn-ghost" id="pos-clear" style="padding:0.2rem 0.45rem;font-size:0.75rem;">Clear</button>
+            </div>
+
+            <div class="adm-field">
+                <label class="adm-label" for="pos-customer">Customer</label>
+                <select id="pos-customer" class="adm-select">
+                    @foreach($customers as $c)
+                        <option value="{{ $c->uuid }}" @selected($c->is_walk_in) data-walk-in="{{ $c->is_walk_in ? '1' : '0' }}" data-credit="{{ $c->credit_enabled ? '1' : '0' }}">{{ $c->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div id="pos-cart-lines" class="pos-cart-lines">
+                <p class="adm-page-desc" style="margin:0;font-size:0.82rem;">Tap a product to add it.</p>
+            </div>
+
+            <div class="pos-totals">
+                <div style="display:flex;justify-content:space-between;"><span>Subtotal (ex VAT)</span><span id="pos-sub-ex">{{ $currencySymbol }}0.00</span></div>
+                <div style="display:flex;justify-content:space-between;margin-top:0.2rem;"><span>VAT</span><span id="pos-tax">{{ $currencySymbol }}0.00</span></div>
+                <div style="display:flex;justify-content:space-between;margin-top:0.2rem;"><span>Discount</span><span id="pos-discount-preview">{{ $currencySymbol }}0.00</span></div>
+                <div style="display:flex;justify-content:space-between;margin-top:0.35rem;" class="grand">
+                    <span>Total</span><span id="pos-grand">{{ $currencySymbol }}0.00</span>
+                </div>
+            </div>
+
+            <button type="button" class="adm-btn adm-btn-primary pos-checkout-btn" id="pos-checkout" disabled>Checkout</button>
+            <p id="pos-status" class="pos-status"></p>
+        </aside>
+    </div>
 </div>
 
 {{-- Checkout modal --}}
 <div class="pos-modal-backdrop" id="checkout-modal" role="dialog" aria-modal="true">
     <div class="pos-modal">
-        <h2 style="font-family:Outfit,sans-serif;margin:0 0 0.75rem;">Complete sale</h2>
+        <h2 style="font-family:Outfit,sans-serif;margin:0 0 0.65rem;font-size:1.05rem;">Complete sale</h2>
         <div class="adm-field">
-            <label class="adm-label" for="pay-method">Payment method</label>
+            <label class="adm-label" for="pay-method">Payment</label>
             <select id="pay-method" class="adm-select">
                 <option value="cash">Cash</option>
-                <option value="transfer">Bank transfer</option>
+                <option value="transfer">Transfer</option>
                 <option value="pos">POS / card</option>
-                <option value="credit">Customer credit</option>
+                <option value="credit">Credit</option>
             </select>
         </div>
         <div class="adm-field">
-            <label class="adm-label" for="pay-account">Deposit to account</label>
+            <label class="adm-label" for="pay-account">Account</label>
             <select id="pay-account" class="adm-select">
                 @foreach($accounts as $acc)
                     <option value="{{ $acc['uuid'] }}" data-kind="{{ $acc['kind'] ?? '' }}">{{ $acc['name'] }}</option>
@@ -112,26 +295,26 @@
         </div>
         <div class="adm-grid cols-2">
             <div class="adm-field">
-                <label class="adm-label" for="pay-discount">Discount ({{ $currencySymbol }})</label>
-                <input type="number" step="0.01" min="0" id="pay-discount" class="adm-input" value="0">
+                <label class="adm-label" for="pay-discount">Discount</label>
+                <input type="number" step="0.01" min="0" id="pay-discount" class="adm-input" value="0" inputmode="decimal">
             </div>
             <div class="adm-field">
-                <label class="adm-label" for="pay-date">Sale date</label>
+                <label class="adm-label" for="pay-date">Date</label>
                 <input type="date" id="pay-date" class="adm-input" value="{{ now()->toDateString() }}" max="{{ now()->toDateString() }}">
             </div>
         </div>
         <div class="adm-field">
             <label class="adm-label">Receipt</label>
-            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
-                <label><input type="radio" name="receipt_mode" value="none" checked> No receipt</label>
-                <label><input type="radio" name="receipt_mode" value="print"> Print thermal (58mm)</label>
-            </div>
+            <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.88rem;">
+                <input type="checkbox" id="pay-print-receipt" checked>
+                Print on terminal (58mm)
+            </label>
         </div>
-        <p class="adm-page-desc" style="margin:0.5rem 0 0;">Charge: <strong id="pay-charge-preview">{{ $currencySymbol }}0.00</strong></p>
+        <p class="adm-page-desc" style="margin:0.4rem 0 0;font-size:0.88rem;">Charge: <strong id="pay-charge-preview">{{ $currencySymbol }}0.00</strong></p>
         <p id="checkout-error" class="pos-status err"></p>
-        <div class="adm-actions" style="margin-top:1rem;">
+        <div class="adm-actions" style="margin-top:0.75rem;">
             <button type="button" class="adm-btn adm-btn-ghost" id="checkout-cancel">Cancel</button>
-            <button type="button" class="adm-btn adm-btn-primary" id="checkout-confirm">Confirm sale</button>
+            <button type="button" class="adm-btn adm-btn-primary" id="checkout-confirm" style="flex:1;">Confirm &amp; print</button>
         </div>
     </div>
 </div>
@@ -139,19 +322,19 @@
 {{-- Quick sell modal --}}
 <div class="pos-modal-backdrop" id="quick-modal">
     <div class="pos-modal">
-        <h2 style="font-family:Outfit,sans-serif;margin:0 0 0.75rem;">Quick sell (no stock)</h2>
+        <h2 style="font-family:Outfit,sans-serif;margin:0 0 0.65rem;font-size:1.05rem;">Quick sell</h2>
         <div class="adm-field">
-            <label class="adm-label" for="quick-name">Item name</label>
-            <input id="quick-name" class="adm-input" placeholder="e.g. Haircut, delivery fee">
+            <label class="adm-label" for="quick-name">Name</label>
+            <input id="quick-name" class="adm-input" placeholder="e.g. Delivery fee">
         </div>
         <div class="adm-field">
             <label class="adm-label" for="quick-price">Price ({{ $currencySymbol }})</label>
-            <input type="number" step="0.01" min="0" id="quick-price" class="adm-input" value="0">
+            <input type="number" step="0.01" min="0" id="quick-price" class="adm-input" value="0" inputmode="decimal">
         </div>
         <p id="quick-error" class="pos-status err"></p>
         <div class="adm-actions">
             <button type="button" class="adm-btn adm-btn-ghost" id="quick-cancel">Cancel</button>
-            <button type="button" class="adm-btn adm-btn-primary" id="quick-save">Create &amp; add</button>
+            <button type="button" class="adm-btn adm-btn-primary" id="quick-save">Add</button>
         </div>
     </div>
 </div>
@@ -161,9 +344,10 @@
     const CSRF = document.querySelector('meta[name="csrf-token"]').content;
     const SYM = @json($currencySymbol);
     const DEFAULT_VAT = {{ $defaultVat }};
-    const PRODUCTS = @json(json_decode($productsJson));
+    const PRODUCTS = @json($products);
     const CHECKOUT_URL = @json(route('admin.b.pos.checkout', $business));
     const QUICK_URL = @json(route('admin.b.pos.quick-product', $business));
+    const POS_URL = @json(route('admin.b.pos.index', $business));
 
     let products = [...PRODUCTS];
     const cart = new Map();
@@ -172,16 +356,17 @@
     const money = (n) => SYM + Number(n).toFixed(2);
     const round2 = (n) => Math.round(n * 100) / 100;
 
-    function tracksStock(p) { return p.track_stock !== false; }
+    function tracksStock(p) {
+        if (p.track_stock === false || p.track_stock === 0 || p.track_stock === '0') return false;
+        return true;
+    }
     function isSellable(p) { return !tracksStock(p) || (p.stock_qty > 0); }
 
     function lineSubEx(line) { return round2(line.qty * line.unit_price); }
     function lineTax(line) { return round2(lineSubEx(line) * (line.tax_rate / 100)); }
     function lineGross(line) { return round2(lineSubEx(line) + lineTax(line)); }
 
-    function cartLines() {
-        return [...cart.values()];
-    }
+    function cartLines() { return [...cart.values()]; }
 
     function totals(discount) {
         let sub = 0, tax = 0;
@@ -191,8 +376,12 @@
         }
         sub = round2(sub);
         tax = round2(tax);
-        const grand = round2(sub + tax - (discount || 0));
-        return { sub, tax, grand };
+        return { sub, tax, grand: round2(sub + tax - (discount || 0)) };
+    }
+
+    function printReceiptOnTerminal(receiptUrl) {
+        const url = receiptUrl + (receiptUrl.includes('?') ? '&' : '?') + 'print=1&return=1';
+        window.location.href = url;
     }
 
     function renderGrid() {
@@ -218,7 +407,7 @@
             btn.disabled = !isSellable(p);
             const stockLabel = tracksStock(p)
                 ? (p.stock_qty > 0 ? 'Stock ' + p.stock_qty : 'Out of stock')
-                : 'No stock tracking';
+                : 'No stock';
             btn.innerHTML = '<div class="name"></div><div class="meta"></div><div class="price"></div>';
             btn.querySelector('.name').textContent = p.name;
             btn.querySelector('.meta').textContent = stockLabel;
@@ -234,7 +423,7 @@
         const existing = cart.get(p.uuid);
         const nextQty = round2((existing ? existing.qty : 0) + add);
         if (tracksStock(p) && p.stock_qty > 0 && nextQty > p.stock_qty + 0.0001) {
-            setStatus('Only ' + p.stock_qty + ' in stock for ' + p.name, true);
+            setStatus('Only ' + p.stock_qty + ' in stock', true);
             return;
         }
         cart.set(p.uuid, {
@@ -252,27 +441,41 @@
         const wrap = el('pos-cart-lines');
         wrap.innerHTML = '';
         if (cart.size === 0) {
-            wrap.innerHTML = '<p class="adm-page-desc" style="margin:0;">Tap products to add them here.</p>';
+            wrap.innerHTML = '<p class="adm-page-desc" style="margin:0;font-size:0.82rem;">Tap a product to add it.</p>';
             el('pos-checkout').disabled = true;
         } else {
             el('pos-checkout').disabled = false;
             for (const line of cartLines()) {
                 const row = document.createElement('div');
                 row.className = 'pos-cart-line';
-                row.innerHTML = '<div><strong></strong><div class="pos-qty" style="margin-top:0.25rem;"><button type="button" data-act="minus">−</button><span></span><button type="button" data-act="plus">+</button></div></div><div style="text-align:right;"></div>';
-                row.querySelector('strong').textContent = line.name;
-                row.querySelector('.pos-qty span').textContent = 'Qty ' + line.qty;
-                row.querySelector('div:last-child').innerHTML = money(lineGross(line)) + '<br><button type="button" data-act="remove" style="font-size:0.75rem;border:none;background:none;color:var(--adm-muted);cursor:pointer;">Remove</button>';
-                row.querySelector('[data-act="minus"]').addEventListener('click', () => {
+                row.innerHTML =
+                    '<div class="pos-line-main">' +
+                        '<strong class="pos-line-name"></strong>' +
+                        '<div class="pos-qty" style="margin-top:0.2rem;">' +
+                            '<button type="button" data-act="minus">−</button>' +
+                            '<span class="pos-line-qty"></span>' +
+                            '<button type="button" data-act="plus">+</button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="pos-line-total"></div>';
+                row.querySelector('.pos-line-name').textContent = line.name;
+                row.querySelector('.pos-line-qty').textContent = '×' + line.qty;
+                row.querySelector('.pos-line-total').innerHTML =
+                    money(lineGross(line)) +
+                    '<br><button type="button" data-act="remove" style="font-size:0.72rem;border:none;background:none;color:var(--adm-muted);cursor:pointer;padding:0;">Remove</button>';
+                row.querySelector('[data-act="minus"]').addEventListener('click', (e) => {
+                    e.stopPropagation();
                     line.qty = round2(line.qty - 1);
                     if (line.qty <= 0) cart.delete(line.product_uuid);
                     renderCart();
                 });
-                row.querySelector('[data-act="plus"]').addEventListener('click', () => {
+                row.querySelector('[data-act="plus"]').addEventListener('click', (e) => {
+                    e.stopPropagation();
                     const p = products.find((x) => x.uuid === line.product_uuid);
                     if (p) addToCart(p, 1);
                 });
-                row.querySelector('[data-act="remove"]').addEventListener('click', () => {
+                row.querySelector('[data-act="remove"]').addEventListener('click', (e) => {
+                    e.stopPropagation();
                     cart.delete(line.product_uuid);
                     renderCart();
                 });
@@ -294,15 +497,12 @@
         s.className = 'pos-status' + (isErr ? ' err' : msg ? ' ok' : '');
     }
 
-    function openModal(id) { el(id).classList.add('open'); }
-    function closeModal(id) { el(id).classList.remove('open'); }
+    function openModal(id) { el(id).classList.add('open'); document.body.style.overflow = 'hidden'; }
+    function closeModal(id) { el(id).classList.remove('open'); document.body.style.overflow = ''; }
 
     function defaultAccountForMethod(method) {
-        const sel = el('pay-account');
-        const opts = [...sel.options];
-        if (method === 'cash') {
-            return opts.find((o) => o.dataset.kind === 'cash') || opts[0];
-        }
+        const opts = [...el('pay-account').options];
+        if (method === 'cash') return opts.find((o) => o.dataset.kind === 'cash') || opts[0];
         return opts.find((o) => o.dataset.kind !== 'cash') || opts[0];
     }
 
@@ -335,14 +535,14 @@
         const discount = parseFloat(el('pay-discount').value || '0') || 0;
         const t = totals(discount);
         if (t.grand < 0) {
-            el('checkout-error').textContent = 'Discount cannot exceed the total.';
+            el('checkout-error').textContent = 'Discount exceeds total.';
             btn.disabled = false;
             return;
         }
         const method = el('pay-method').value;
         const custOpt = el('pos-customer').selectedOptions[0];
         if (method === 'credit' && custOpt?.dataset.walkIn === '1') {
-            el('checkout-error').textContent = 'Pick a saved customer (not Walk-in) for credit sales.';
+            el('checkout-error').textContent = 'Pick a saved customer for credit.';
             btn.disabled = false;
             return;
         }
@@ -355,11 +555,7 @@
                 unit_price: l.unit_price,
                 tax_rate: l.tax_rate,
             })),
-            payments: [{
-                method,
-                amount: t.grand,
-                account_uuid: el('pay-account').value,
-            }],
+            payments: [{ method, amount: t.grand, account_uuid: el('pay-account').value }],
             discount_total: discount,
             sold_at: el('pay-date').value || null,
             idempotency_key: crypto.randomUUID(),
@@ -376,17 +572,19 @@
             });
             const body = await res.json();
             if (!res.ok) throw new Error(body.message || 'Checkout failed');
+
+            const printReceipt = el('pay-print-receipt').checked;
+            if (printReceipt && body.receipt_url) {
+                printReceiptOnTerminal(body.receipt_url);
+                return;
+            }
+
             cart.clear();
             renderCart();
             closeModal('checkout-modal');
             setStatus('Sale #' + body.data.receipt_no + ' recorded.', false);
-            const printReceipt = document.querySelector('input[name="receipt_mode"]:checked')?.value === 'print';
-            if (printReceipt && body.receipt_url) {
-                window.open(body.receipt_url + '?print=1', '_blank', 'noopener');
-            }
         } catch (e) {
             el('checkout-error').textContent = e.message || 'Checkout failed';
-        } finally {
             btn.disabled = false;
         }
     });
@@ -402,7 +600,6 @@
         const name = el('quick-name').value.trim();
         const price = parseFloat(el('quick-price').value || '0') || 0;
         if (!name) { el('quick-error').textContent = 'Enter a name.'; return; }
-        el('quick-error').textContent = '';
         try {
             const res = await fetch(QUICK_URL, {
                 method: 'POST',
@@ -419,7 +616,7 @@
             addToCart(p, 1);
             closeModal('quick-modal');
             renderGrid();
-            setStatus(name + ' added to cart.', false);
+            setStatus(name + ' added.', false);
         } catch (e) {
             el('quick-error').textContent = e.message;
         }

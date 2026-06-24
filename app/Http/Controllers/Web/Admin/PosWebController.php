@@ -79,7 +79,7 @@ class PosWebController extends Controller
         return view('admin.pos.index', $this->workspace($request, $business) + [
             'location' => $location,
             'locations' => $business->locations()->orderByDesc('is_default')->get(),
-            'productsJson' => $products->toJson(),
+            'products' => $products,
             'categories' => $categories,
             'customers' => $customers,
             'accounts' => $accounts,
@@ -185,6 +185,7 @@ class PosWebController extends Controller
             'currencySymbol' => $this->currencySymbol($business),
             'receiptFooter' => data_get($business->settings, 'receipt_footer') ?: 'Thank you for your patronage.',
             'autoPrint' => $request->boolean('print'),
+            'returnToPos' => $request->boolean('return'),
         ]);
     }
 
