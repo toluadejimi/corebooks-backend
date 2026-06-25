@@ -22,10 +22,14 @@ class TeamWebController extends Controller
 
     public function index(Request $request, Business $business): View
     {
+        $business->load('locations');
         $members = $business->users()->orderBy('name')->get();
+        $locById = $business->locations->keyBy('id');
 
         return view('admin.team.index', $this->workspace($request, $business) + [
             'members' => $members,
+            'locations' => $business->locations()->orderByDesc('is_default')->orderBy('name')->get(),
+            'locById' => $locById,
         ]);
     }
 
@@ -36,6 +40,7 @@ class TeamWebController extends Controller
             'email' => ['required', 'email', 'max:255'],
             'password' => ['nullable', 'string', 'min:8'],
             'role' => ['required', 'string'],
+            'location_uuid' => ['nullable', 'uuid'],
         ]);
 
         try {
@@ -50,16 +55,19 @@ class TeamWebController extends Controller
     public function update(Request $request, Business $business, User $user): RedirectResponse
     {
         $data = $request->validate([
-            'role' => ['required', 'string'],
+            'role' => ['nullable', 'string'],
+            'location_uuid' => ['nullable', 'uuid'],
         ]);
 
         try {
-            $this->teamMembers->updateMemberRole($business, $request->user(), $user, $data['role']);
+            $this->teamMembers->updateMember($business, $request->user(), $user, $data);
+        } catch (ValidationException $e) {
+            return redirect()->route('admin.b.team.index', $business)->withErrors($e->errors())->withInput();
         } catch (\Throwable $e) {
-            return redirect()->route('admin.b.team.index', $business)->withErrors(['role' => $e->getMessage()]);
+            return redirect()->route('admin.b.team.index', $business)->withErrors(['team' => $e->getMessage()]);
         }
 
-        return redirect()->route('admin.b.team.index', $business)->with('status', 'Role updated.');
+        return redirect()->route('admin.b.team.index', $business)->with('status', 'Member updated.');
     }
 
     public function destroy(Request $request, Business $business, User $user): RedirectResponse
