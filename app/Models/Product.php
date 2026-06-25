@@ -19,6 +19,7 @@ class Product extends Model
         'variations',
         'sku',
         'barcode',
+        'unit',
         'cost_price',
         'selling_price',
         'low_stock_threshold',

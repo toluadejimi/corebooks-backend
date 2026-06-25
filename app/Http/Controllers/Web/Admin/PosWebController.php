@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Support\ProductUnits;
 use App\Services\AccountFundsService;
 use App\Services\SaleCheckoutService;
 use Illuminate\Http\JsonResponse;
@@ -50,6 +51,7 @@ class PosWebController extends Controller
                 'name' => $p->name,
                 'sku' => $p->sku,
                 'barcode' => $p->barcode,
+                'unit' => ProductUnits::normalize($p->unit),
                 'image_url' => $p->image_url,
                 'selling_price' => (float) $p->selling_price,
                 'vat_rate' => $p->vat_rate !== null ? (float) $p->vat_rate : (float) $business->default_vat_rate,
@@ -139,6 +141,7 @@ class PosWebController extends Controller
             'selling_price' => ['required', 'numeric', 'min:0'],
             'location_uuid' => ['nullable', 'uuid'],
             'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'unit' => ['nullable', 'string', 'max:16'],
         ]);
 
         $location = $business->locations()->where('is_default', true)->first()
@@ -151,6 +154,7 @@ class PosWebController extends Controller
             'business_id' => $business->id,
             'uuid' => (string) Str::uuid(),
             'name' => $data['name'],
+            'unit' => ProductUnits::normalize($data['unit'] ?? null),
             'cost_price' => 0,
             'selling_price' => $data['selling_price'],
             'track_batches' => false,
@@ -163,6 +167,7 @@ class PosWebController extends Controller
             'data' => [
                 'uuid' => $product->uuid,
                 'name' => $product->name,
+                'unit' => ProductUnits::normalize($product->unit),
                 'selling_price' => (float) $product->selling_price,
                 'vat_rate' => (float) $product->vat_rate,
                 'track_stock' => false,
@@ -206,6 +211,7 @@ class PosWebController extends Controller
             'lines' => $sale->lines->map(fn ($l) => [
                 'name' => $l->product?->name,
                 'qty' => (float) $l->qty,
+                'unit' => ProductUnits::normalize($l->product?->unit),
                 'line_total' => (float) $l->line_total,
             ]),
             'payments' => $sale->payments->map(fn ($p) => [

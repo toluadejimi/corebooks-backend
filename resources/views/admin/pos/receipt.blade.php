@@ -104,7 +104,7 @@
 
         @foreach($sale->lines as $line)
             <div class="row" style="margin-bottom:3px;">
-                <span class="name">{{ $line->product?->name ?? 'Item' }} × {{ rtrim(rtrim(number_format((float) $line->qty, 3, '.', ''), '0'), '.') }}</span>
+                <span class="name">{{ $line->product?->name ?? 'Item' }} × {{ rtrim(rtrim(number_format((float) $line->qty, 3, '.', ''), '0'), '.') }} {{ $line->product?->unit ?? 'pcs' }}</span>
                 <span class="amt">{{ $currencySymbol }}{{ number_format((float) $line->line_total, 2) }}</span>
             </div>
         @endforeach

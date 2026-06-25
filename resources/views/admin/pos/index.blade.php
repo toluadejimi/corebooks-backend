@@ -430,6 +430,7 @@
             product_uuid: p.uuid,
             name: p.name,
             qty: nextQty,
+            unit: p.unit || 'pcs',
             unit_price: p.selling_price,
             tax_rate: p.vat_rate ?? DEFAULT_VAT,
         });
@@ -459,7 +460,7 @@
                     '</div>' +
                     '<div class="pos-line-total"></div>';
                 row.querySelector('.pos-line-name').textContent = line.name;
-                row.querySelector('.pos-line-qty').textContent = '×' + line.qty;
+                row.querySelector('.pos-line-qty').textContent = '×' + line.qty + ' ' + (line.unit || 'pcs');
                 row.querySelector('.pos-line-total').innerHTML =
                     money(lineGross(line)) +
                     '<br><button type="button" data-act="remove" style="font-size:0.72rem;border:none;background:none;color:var(--adm-muted);cursor:pointer;padding:0;">Remove</button>';

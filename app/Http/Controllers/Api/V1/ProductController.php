@@ -7,6 +7,7 @@ use App\Models\Business;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductBatch;
+use App\Support\ProductUnits;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -60,6 +61,7 @@ class ProductController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'sku' => ['nullable', 'string', 'max:128'],
             'barcode' => ['nullable', 'string', 'max:128'],
+            'unit' => ['nullable', 'string', 'max:16'],
             'cost_price' => ['nullable', 'numeric', 'min:0'],
             'selling_price' => ['nullable', 'numeric', 'min:0'],
             'low_stock_threshold' => ['nullable', 'integer', 'min:0'],
@@ -108,6 +110,7 @@ class ProductController extends Controller
             'variations' => isset($data['variations']) && is_array($data['variations']) ? array_values($data['variations']) : null,
             'sku' => $data['sku'] ?? null,
             'barcode' => $data['barcode'] ?? null,
+            'unit' => ProductUnits::normalize($data['unit'] ?? null),
             'cost_price' => $data['cost_price'] ?? 0,
             'selling_price' => $data['selling_price'] ?? 0,
             'low_stock_threshold' => $data['low_stock_threshold'] ?? 0,
@@ -149,10 +152,12 @@ class ProductController extends Controller
             'name' => ['sometimes', 'string', 'max:255'],
             'sku' => ['nullable', 'string', 'max:128'],
             'barcode' => ['nullable', 'string', 'max:128'],
+            'unit' => ['nullable', 'string', 'max:16'],
             'cost_price' => ['sometimes', 'numeric', 'min:0'],
             'selling_price' => ['sometimes', 'numeric', 'min:0'],
             'low_stock_threshold' => ['sometimes', 'integer', 'min:0'],
             'track_batches' => ['sometimes', 'boolean'],
+            'track_stock' => ['sometimes', 'boolean'],
             'vat_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'image_url' => ['nullable', 'string', 'max:2048'],
             'available_online' => ['sometimes', 'boolean'],
@@ -174,6 +179,9 @@ class ProductController extends Controller
         }
 
         $fill = collect($data)->except(['client_version', 'category_uuid'])->toArray();
+        if (array_key_exists('unit', $fill)) {
+            $fill['unit'] = ProductUnits::normalize($fill['unit']);
+        }
         if (array_key_exists('gallery_urls', $data) && is_array($data['gallery_urls'])) {
             $fill['gallery_urls'] = array_values($data['gallery_urls']);
             $first = $fill['gallery_urls'][0] ?? null;
@@ -246,6 +254,7 @@ class ProductController extends Controller
             'category_name' => $product->category?->name,
             'sku' => $product->sku,
             'barcode' => $product->barcode,
+            'unit' => ProductUnits::normalize($product->unit),
             'cost_price' => (float) $product->cost_price,
             'selling_price' => (float) $product->selling_price,
             'low_stock_threshold' => (int) $product->low_stock_threshold,

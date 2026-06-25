@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\Category;
 use App\Models\Product;
+use App\Support\ProductUnits;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -87,6 +88,7 @@ class SyncController extends Controller
                         : null,
                     'sku' => $payload['sku'] ?? null,
                     'barcode' => $payload['barcode'] ?? null,
+                    'unit' => ProductUnits::normalize($payload['unit'] ?? ($product?->unit)),
                     'cost_price' => $payload['cost_price'] ?? 0,
                     'selling_price' => $payload['selling_price'] ?? 0,
                     'low_stock_threshold' => $payload['low_stock_threshold'] ?? 0,
@@ -163,6 +165,7 @@ class SyncController extends Controller
                     'variations' => $p->variations ?? [],
                     'sku' => $p->sku,
                     'barcode' => $p->barcode,
+                    'unit' => ProductUnits::normalize($p->unit),
                     'category_uuid' => $p->category?->uuid,
                     'category_name' => $p->category?->name,
                     'cost_price' => (float) $p->cost_price,

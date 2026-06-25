@@ -52,6 +52,17 @@
                 <input class="adm-input" id="barcode" name="barcode" value="{{ old('barcode', $product->barcode ?? '') }}">
             </div>
         </div>
+        <div class="adm-field">
+            <label class="adm-label" for="unit">Unit of measure</label>
+            @php($currentUnit = old('unit', $product->unit ?? 'pcs'))
+            <input class="adm-input" id="unit" name="unit" list="unit-presets" maxlength="16" placeholder="e.g. pcs, kg, pks" value="{{ $currentUnit }}">
+            <datalist id="unit-presets">
+                @foreach($unitPresets ?? [] as $u)
+                    <option value="{{ $u }}"></option>
+                @endforeach
+            </datalist>
+            <p class="adm-page-desc" style="margin:0.35rem 0 0;font-size:0.78rem;">Shown on POS and receipts (pieces, kilograms, packs, etc.).</p>
+        </div>
         <div class="adm-grid cols-2">
             <div class="adm-field">
                 <label class="adm-label" for="cost_price">Cost price</label>

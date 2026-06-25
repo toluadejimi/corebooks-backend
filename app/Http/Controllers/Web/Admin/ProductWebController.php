@@ -8,6 +8,7 @@ use App\Models\Business;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductBatch;
+use App\Support\ProductUnits;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -48,6 +49,7 @@ class ProductWebController extends Controller
             'product' => null,
             'locations' => $business->locations()->orderByDesc('is_default')->get(),
             'categories' => Category::query()->where('business_id', $business->id)->orderBy('name')->get(),
+            'unitPresets' => ProductUnits::PRESETS,
         ]);
     }
 
@@ -57,6 +59,7 @@ class ProductWebController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'sku' => ['nullable', 'string', 'max:128'],
             'barcode' => ['nullable', 'string', 'max:128'],
+            'unit' => ['nullable', 'string', 'max:16'],
             'category_id' => ['nullable', 'integer', Rule::exists('categories', 'id')->where('business_id', $business->id)],
             'image_url' => ['nullable', 'string', 'max:2048'],
             'cost_price' => ['nullable', 'numeric', 'min:0'],
@@ -81,6 +84,7 @@ class ProductWebController extends Controller
             'name' => $data['name'],
             'sku' => $data['sku'] ?? null,
             'barcode' => $data['barcode'] ?? null,
+            'unit' => ProductUnits::normalize($data['unit'] ?? null),
             'category_id' => $data['category_id'] ?? null,
             'image_url' => isset($data['image_url']) && $data['image_url'] !== '' ? $data['image_url'] : null,
             'cost_price' => $data['cost_price'] ?? 0,
@@ -136,6 +140,7 @@ class ProductWebController extends Controller
             'product' => $product,
             'locations' => $business->locations()->orderByDesc('is_default')->get(),
             'categories' => Category::query()->where('business_id', $business->id)->orderBy('name')->get(),
+            'unitPresets' => ProductUnits::PRESETS,
         ]);
     }
 
@@ -150,6 +155,7 @@ class ProductWebController extends Controller
             'name' => ['sometimes', 'string', 'max:255'],
             'sku' => ['nullable', 'string', 'max:128'],
             'barcode' => ['nullable', 'string', 'max:128'],
+            'unit' => ['nullable', 'string', 'max:16'],
             'category_id' => ['nullable', 'integer', Rule::exists('categories', 'id')->where('business_id', $business->id)],
             'image_url' => ['nullable', 'string', 'max:2048'],
             'cost_price' => ['sometimes', 'numeric', 'min:0'],
@@ -163,8 +169,11 @@ class ProductWebController extends Controller
             $data['image_url'] = null;
         }
 
-        $keys = ['name', 'sku', 'barcode', 'category_id', 'image_url', 'cost_price', 'selling_price', 'low_stock_threshold', 'vat_rate'];
+        $keys = ['name', 'sku', 'barcode', 'unit', 'category_id', 'image_url', 'cost_price', 'selling_price', 'low_stock_threshold', 'vat_rate'];
         $product->fill(array_intersect_key($data, array_flip($keys)));
+        if (array_key_exists('unit', $data)) {
+            $product->unit = ProductUnits::normalize($data['unit']);
+        }
         if ($request->has('track_stock')) {
             $product->track_stock = $request->boolean('track_stock');
         }

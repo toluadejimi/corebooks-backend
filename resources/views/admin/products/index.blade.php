@@ -26,6 +26,7 @@
                 <th>Name</th>
                 <th>Category</th>
                 <th>SKU</th>
+                <th>Unit</th>
                 <th>Sell</th>
                 <th>Stock</th>
                 @if($canManage)<th></th>@endif
@@ -44,6 +45,7 @@
                     <td><strong>{{ $p->name }}</strong></td>
                     <td style="color:var(--adm-muted);">{{ $p->category?->name ?? '—' }}</td>
                     <td style="color:var(--adm-muted);">{{ $p->sku ?? '—' }}</td>
+                    <td style="color:var(--adm-muted);">{{ $p->unit ?? 'pcs' }}</td>
                     <td>{{ $currencySymbol }}{{ number_format($p->selling_price, 2) }}</td>
                     <td>{{ number_format((float) ($p->batches_sum_qty ?? 0), 2) }}</td>
                     @if($canManage)
@@ -57,7 +59,7 @@
                     @endif
                 </tr>
             @empty
-                <tr><td colspan="{{ $canManage ? 7 : 6 }}" style="color:var(--adm-muted);">No products yet.</td></tr>
+                <tr><td colspan="{{ $canManage ? 8 : 7 }}" style="color:var(--adm-muted);">No products yet.</td></tr>
             @endforelse
         </tbody>
     </table>
