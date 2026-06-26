@@ -139,4 +139,96 @@ document.addEventListener('DOMContentLoaded', function () {
         @endif
     </form>
 </div>
+
+<div class="adm-card" style="max-width:920px;margin-top:1.25rem;">
+    <h2 style="margin-top:0;font-family:Outfit,sans-serif;font-size:1.05rem;">POS card terminal</h2>
+    <p class="adm-page-desc" style="margin-top:-0.35rem;">
+        Configure bank card acceptance on Android POS devices (Horizon Pay S60). Values match the ENKWAVE terminal prep: host IP/port, component keys, and merchant TID.
+        The mobile POS app downloads this when staff open checkout.
+    </p>
+    @if(!$canManage)
+        <p class="adm-page-desc">Only managers can change terminal settings.</p>
+    @endif
+    <form method="post" action="{{ route('admin.b.settings.pos_terminal', $business) }}">
+        @csrf @method('PUT')
+        <div class="adm-field">
+            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                <input type="hidden" name="pos_enabled" value="0">
+                <input type="checkbox" name="pos_enabled" value="1" @checked(old('pos_enabled', $posTerminal['pos_enabled'] ?? false)) {{ $canManage ? '' : 'disabled' }}>
+                Enable card payments on mobile POS
+            </label>
+        </div>
+        <div class="adm-grid cols-2">
+            <div class="adm-field">
+                <label class="adm-label" for="terminal_no">Terminal ID (TID)</label>
+                <input class="adm-input" id="terminal_no" name="terminal_no" value="{{ old('terminal_no', $posTerminal['terminal_no'] ?? '') }}" {{ $canManage ? '' : 'readonly' }} placeholder="e.g. 2ETP0012">
+            </div>
+            <div class="adm-field">
+                <label class="adm-label" for="merchant_no">Merchant ID (MID)</label>
+                <input class="adm-input" id="merchant_no" name="merchant_no" value="{{ old('merchant_no', $posTerminal['merchant_no'] ?? '') }}" {{ $canManage ? '' : 'readonly' }}>
+            </div>
+        </div>
+        <div class="adm-grid cols-2">
+            <div class="adm-field">
+                <label class="adm-label" for="merchant_name">Merchant name (receipt)</label>
+                <input class="adm-input" id="merchant_name" name="merchant_name" value="{{ old('merchant_name', $posTerminal['merchant_name'] ?? $biz->name) }}" {{ $canManage ? '' : 'readonly' }}>
+            </div>
+            <div class="adm-field">
+                <label class="adm-label" for="device_sn">Device serial (optional)</label>
+                <input class="adm-input" id="device_sn" name="device_sn" value="{{ old('device_sn', $posTerminal['device_sn'] ?? '') }}" {{ $canManage ? '' : 'readonly' }}>
+            </div>
+        </div>
+        <div class="adm-grid cols-2">
+            <div class="adm-field">
+                <label class="adm-label" for="host_ip">Host IP / hostname</label>
+                <input class="adm-input" id="host_ip" name="host_ip" value="{{ old('host_ip', $posTerminal['host_ip'] ?? '') }}" {{ $canManage ? '' : 'readonly' }} placeholder="TMS / acquirer host">
+            </div>
+            <div class="adm-field">
+                <label class="adm-label" for="host_port">Host port</label>
+                <input class="adm-input" id="host_port" name="host_port" value="{{ old('host_port', $posTerminal['host_port'] ?? '') }}" {{ $canManage ? '' : 'readonly' }} placeholder="8080">
+            </div>
+        </div>
+        <div class="adm-grid cols-2">
+            <div class="adm-field">
+                <label class="adm-label" for="ssl">Use SSL</label>
+                <select class="adm-select" id="ssl" name="ssl" {{ $canManage ? '' : 'disabled' }}>
+                    <option value="true" @selected(old('ssl', $posTerminal['ssl'] ?? 'true') === 'true')>Yes</option>
+                    <option value="false" @selected(old('ssl', $posTerminal['ssl'] ?? 'true') === 'false')>No</option>
+                </select>
+            </div>
+            <div class="adm-field">
+                <label class="adm-label" for="account_type">Default account type</label>
+                <select class="adm-select" id="account_type" name="account_type" {{ $canManage ? '' : 'disabled' }}>
+                    @foreach(['00' => 'Default', '10' => 'Savings', '20' => 'Current', '30' => 'Corporate'] as $val => $label)
+                        <option value="{{ $val }}" @selected(old('account_type', $posTerminal['account_type'] ?? '00') === $val)>{{ $label }} ({{ $val }})</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+        <div class="adm-field">
+            <label class="adm-label" for="base_url">Processor API base URL</label>
+            <input class="adm-input" id="base_url" name="base_url" type="url" value="{{ old('base_url', $posTerminal['base_url'] ?? '') }}" {{ $canManage ? '' : 'readonly' }} placeholder="https://enkpayapp.enkwave.com/api/">
+            <p class="adm-page-desc" style="margin:0.35rem 0 0;font-size:0.78rem;">Used for key exchange and purchase authorization (pos-logs / pos callbacks).</p>
+        </div>
+        <div class="adm-field">
+            <label class="adm-label" for="pos_logo_url">Receipt logo URL (optional)</label>
+            <input class="adm-input" id="pos_logo_url" name="logo_url" type="url" value="{{ old('logo_url', $posTerminal['logo_url'] ?? $biz->logo_url) }}" {{ $canManage ? '' : 'readonly' }}>
+        </div>
+        <div class="adm-grid cols-2">
+            <div class="adm-field">
+                <label class="adm-label" for="comp_key1">Component key 1</label>
+                <input class="adm-input" id="comp_key1" name="comp_key1" value="{{ old('comp_key1', $posTerminal['comp_key1'] ?? '') }}" {{ $canManage ? '' : 'readonly' }} autocomplete="off">
+            </div>
+            <div class="adm-field">
+                <label class="adm-label" for="comp_key2">Component key 2</label>
+                <input class="adm-input" id="comp_key2" name="comp_key2" value="{{ old('comp_key2', $posTerminal['comp_key2'] ?? '') }}" {{ $canManage ? '' : 'readonly' }} autocomplete="off">
+            </div>
+        </div>
+        @if($canManage)
+            <div class="adm-actions">
+                <button type="submit" class="adm-btn adm-btn-primary">Save POS terminal</button>
+            </div>
+        @endif
+    </form>
+</div>
 @endsection

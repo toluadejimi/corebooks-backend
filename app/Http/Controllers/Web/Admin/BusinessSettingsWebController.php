@@ -9,6 +9,7 @@ use App\Models\Location;
 use App\Models\ProductBatch;
 use App\Models\PurchaseOrder;
 use App\Models\Sale;
+use App\Support\PosTerminalConfig;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -27,7 +28,39 @@ class BusinessSettingsWebController extends Controller
         return view('admin.settings.edit', $this->workspace($request, $business) + [
             'biz' => $business,
             'receiptFooter' => data_get($business->settings, 'receipt_footer'),
+            'posTerminal' => PosTerminalConfig::fromBusinessSettings($business->settings),
         ]);
+    }
+
+    public function updatePosTerminal(Request $request, Business $business): RedirectResponse
+    {
+        $data = $request->validate([
+            'pos_enabled' => ['sometimes', 'boolean'],
+            'merchant_no' => ['nullable', 'string', 'max:64'],
+            'terminal_no' => ['nullable', 'string', 'max:32'],
+            'merchant_name' => ['nullable', 'string', 'max:255'],
+            'device_sn' => ['nullable', 'string', 'max:64'],
+            'host_ip' => ['nullable', 'string', 'max:255'],
+            'host_port' => ['nullable', 'string', 'max:8'],
+            'ssl' => ['nullable', 'string', 'in:true,false,1,0'],
+            'comp_key1' => ['nullable', 'string', 'max:512'],
+            'comp_key2' => ['nullable', 'string', 'max:512'],
+            'base_url' => ['nullable', 'string', 'max:2048'],
+            'logo_url' => ['nullable', 'string', 'max:2048'],
+            'account_type' => ['nullable', 'string', 'in:00,10,20,30'],
+        ]);
+
+        $data['pos_enabled'] = $request->boolean('pos_enabled');
+
+        $settings = $business->settings ?? [];
+        $settings['pos_terminal'] = PosTerminalConfig::normalize($data);
+        $business->settings = $settings;
+        $business->version = (int) $business->version + 1;
+        $business->save();
+
+        return redirect()
+            ->route('admin.b.settings.edit', $business)
+            ->with('status', 'POS terminal settings saved.');
     }
 
     public function updateProfile(Request $request, Business $business): RedirectResponse

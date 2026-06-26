@@ -8,6 +8,7 @@ use App\Models\Business;
 use App\Models\Location;
 use App\Models\PlatformSetting;
 use App\Services\BusinessCreator;
+use App\Support\PosTerminalConfig;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -133,6 +134,7 @@ class BusinessController extends Controller
             'default_vat_rate' => (float) $business->default_vat_rate,
             'tax_id' => $business->tax_id,
             'receipt_footer' => data_get($business->settings, 'receipt_footer'),
+            'pos_terminal' => PosTerminalConfig::toMobilePayload($business->settings),
             'public_shop_enabled' => (bool) $business->public_shop_enabled,
             'public_shop_slug' => $business->public_shop_slug,
             'public_shop_url' => $business->public_shop_enabled ? url('/shop/'.$business->uuid) : null,

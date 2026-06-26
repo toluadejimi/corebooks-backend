@@ -176,6 +176,7 @@ Route::middleware('auth')->group(function (): void {
             Route::get('/settings', [BusinessSettingsWebController::class, 'edit'])->name('settings.edit');
             Route::middleware('business.role:manager')->group(function (): void {
                 Route::put('/settings/profile', [BusinessSettingsWebController::class, 'updateProfile'])->name('settings.profile');
+                Route::put('/settings/pos-terminal', [BusinessSettingsWebController::class, 'updatePosTerminal'])->name('settings.pos_terminal');
                 Route::post('/settings/logo', [BusinessSettingsWebController::class, 'uploadLogo'])->name('settings.logo');
                 Route::post('/settings/locations', [BusinessSettingsWebController::class, 'storeLocation'])->name('settings.locations.store');
                 Route::delete('/settings/locations/{location}', [BusinessSettingsWebController::class, 'destroyLocation'])->name('settings.locations.destroy');
