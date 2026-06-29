@@ -33,7 +33,8 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Private app files must not be served from /storage (unsigned URLs get 403).
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],
@@ -43,6 +44,8 @@ return [
             'root' => storage_path('app/public'),
             'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
             'visibility' => 'public',
+            // Serves uploads at /storage/... when the public/storage symlink is missing.
+            'serve' => true,
             'throw' => false,
             'report' => false,
         ],

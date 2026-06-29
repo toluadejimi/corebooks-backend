@@ -64,7 +64,7 @@ final class PosTerminalConfig
      *
      * @return array<string, mixed>|null
      */
-    public static function toMobilePayload(?array $settings): ?array
+    public static function toMobilePayload(?array $settings, ?string $businessLogoUrl = null): ?array
     {
         $cfg = self::fromBusinessSettings($settings);
         if (! ($cfg['pos_enabled'] ?? false)) {
@@ -78,6 +78,8 @@ final class PosTerminalConfig
                 'message' => 'POS terminal settings are incomplete. Ask a manager to finish setup in admin.',
             ];
         }
+
+        $logoUrl = $cfg['logo_url'] ?? $businessLogoUrl;
 
         return [
             'pos_enabled' => true,
@@ -95,7 +97,7 @@ final class PosTerminalConfig
                 'compKey1' => $cfg['comp_key1'],
                 'compKey2' => $cfg['comp_key2'],
                 'baseUrl' => $cfg['base_url'],
-                'logoUrl' => $cfg['logo_url'],
+                'logoUrl' => $logoUrl,
             ],
             'account_type' => $cfg['account_type'],
         ];
