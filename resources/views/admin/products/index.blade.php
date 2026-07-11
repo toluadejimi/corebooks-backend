@@ -19,13 +19,22 @@
 @endif
 
 <form method="get" action="{{ route('admin.b.products.index', $business) }}" class="adm-card" style="margin-bottom:1rem;">
-    <div class="adm-field" style="margin:0;">
-        <label class="adm-label" for="q">Search name, SKU or barcode</label>
-        <input class="adm-input" id="q" name="q" value="{{ $search }}" placeholder="e.g. Coke" autofocus>
+    <div class="adm-grid cols-2" style="gap:0.75rem;">
+        <div class="adm-field" style="margin:0;">
+            <label class="adm-label" for="q">Search name, SKU or barcode</label>
+            <input class="adm-input" id="q" name="q" value="{{ $search }}" placeholder="e.g. Coke" autofocus>
+        </div>
+        <div class="adm-field" style="margin:0;">
+            <label class="adm-label" for="sort">Sort by</label>
+            <select class="adm-select" id="sort" name="sort">
+                <option value="name" @selected($sort === 'name')>Name</option>
+                <option value="category" @selected($sort === 'category')>Category</option>
+            </select>
+        </div>
     </div>
     <div class="adm-actions" style="margin-top:0.75rem;">
-        <button class="adm-btn adm-btn-primary" type="submit">Search</button>
-        @if($search !== '')
+        <button class="adm-btn adm-btn-primary" type="submit">Apply</button>
+        @if($search !== '' || $sort !== 'name')
             <a class="adm-btn adm-btn-ghost" href="{{ route('admin.b.products.index', $business) }}">Clear</a>
         @endif
     </div>
