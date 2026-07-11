@@ -21,13 +21,24 @@ class ProductWebController extends Controller
 
     public function index(Request $request, Business $business): View
     {
-        $products = Product::query()
+        $search = trim((string) $request->query('q', ''));
+
+        $query = Product::query()
             ->where('business_id', $business->id)
             ->with(['category:id,name'])
             ->withSum('batches', 'qty')
-            ->orderBy('name')
-            ->limit(500)
-            ->get();
+            ->orderBy('name');
+
+        if ($search !== '') {
+            $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $search).'%';
+            $query->where(function ($q) use ($like): void {
+                $q->where('name', 'like', $like)
+                    ->orWhere('sku', 'like', $like)
+                    ->orWhere('barcode', 'like', $like);
+            });
+        }
+
+        $products = $query->limit(500)->get();
 
         $currencySymbol = match (strtoupper((string) ($business->currency ?? 'NGN'))) {
             'NGN' => '₦',
@@ -40,6 +51,7 @@ class ProductWebController extends Controller
         return view('admin.products.index', $this->workspace($request, $business) + [
             'products' => $products,
             'currencySymbol' => $currencySymbol,
+            'search' => $search,
         ]);
     }
 

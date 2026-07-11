@@ -18,6 +18,19 @@
     </div>
 @endif
 
+<form method="get" action="{{ route('admin.b.products.index', $business) }}" class="adm-card" style="margin-bottom:1rem;">
+    <div class="adm-field" style="margin:0;">
+        <label class="adm-label" for="q">Search name, SKU or barcode</label>
+        <input class="adm-input" id="q" name="q" value="{{ $search }}" placeholder="e.g. Coke" autofocus>
+    </div>
+    <div class="adm-actions" style="margin-top:0.75rem;">
+        <button class="adm-btn adm-btn-primary" type="submit">Search</button>
+        @if($search !== '')
+            <a class="adm-btn adm-btn-ghost" href="{{ route('admin.b.products.index', $business) }}">Clear</a>
+        @endif
+    </div>
+</form>
+
 <div class="adm-table-wrap">
     <table class="adm-table">
         <thead>
@@ -59,7 +72,15 @@
                     @endif
                 </tr>
             @empty
-                <tr><td colspan="{{ $canManage ? 8 : 7 }}" style="color:var(--adm-muted);">No products yet.</td></tr>
+                <tr>
+                    <td colspan="{{ $canManage ? 8 : 7 }}" style="color:var(--adm-muted);">
+                        @if($search !== '')
+                            No products match “{{ $search }}”.
+                        @else
+                            No products yet.
+                        @endif
+                    </td>
+                </tr>
             @endforelse
         </tbody>
     </table>
