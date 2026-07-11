@@ -219,10 +219,14 @@ Route::middleware('auth')->group(function (): void {
                 ->middleware('business.role:manager')
                 ->whereUuid('purchaseUuid')
                 ->name('purchases.edit');
-            Route::put('/purchases/{purchaseUuid}', [PurchaseWebController::class, 'update'])
+            Route::post('/purchases/{purchaseUuid}/draft', [PurchaseWebController::class, 'saveDraft'])
                 ->middleware('business.role:manager')
                 ->whereUuid('purchaseUuid')
-                ->name('purchases.update');
+                ->name('purchases.draft');
+            Route::post('/purchases/{purchaseUuid}/receive', [PurchaseWebController::class, 'receiveDraft'])
+                ->middleware('business.role:manager')
+                ->whereUuid('purchaseUuid')
+                ->name('purchases.receive');
             // Plain string UUID + manual resolve: supports /purchases/{purchase_order_uuid} and redirects
             // when someone opens /purchases/{product_batch_uuid} (common bookmark mix-up).
             Route::get('/purchases/{purchaseUuid}', [PurchaseWebController::class, 'show'])

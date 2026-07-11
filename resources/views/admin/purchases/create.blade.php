@@ -7,7 +7,10 @@
     $defaultLoc = $locations->firstWhere('is_default') ?? $locations->first();
     $isDraft = $purchase !== null;
     $formAction = $isDraft
-        ? route('admin.b.purchases.update', [$business, $purchase->uuid])
+        ? route('admin.b.purchases.receive', [$business, $purchase->uuid])
+        : route('admin.b.purchases.store', $business);
+    $draftAction = $isDraft
+        ? route('admin.b.purchases.draft', [$business, $purchase->uuid])
         : route('admin.b.purchases.store', $business);
     $prefillLocation = old('location_uuid', $purchase?->location?->uuid ?? $defaultLoc?->uuid);
     $prefillSupplier = old('supplier_uuid', $purchase?->supplier?->uuid);
@@ -32,9 +35,7 @@
 <div class="adm-card" style="max-width:920px;">
     <form method="post" action="{{ $formAction }}" id="purchase-form">
         @csrf
-        @if($isDraft)
-            @method('PUT')
-        @endif
+        <input type="hidden" name="intent" id="intent-field" value="receive">
         <div class="adm-grid cols-2">
             <div class="adm-field">
                 <label class="adm-label" for="location_uuid">Receive at branch</label>
@@ -154,9 +155,20 @@
         <button type="button" class="adm-btn adm-btn-ghost" id="add-line" style="margin-top:0.75rem;">+ Add line</button>
 
         <div class="adm-actions" style="margin-top:1.5rem;">
-            <input type="hidden" name="intent" id="intent-field" value="receive">
-            <button type="submit" class="adm-btn adm-btn-primary" id="btn-receive" data-intent="receive">Receive stock</button>
-            <button type="submit" class="adm-btn adm-btn-ghost" id="btn-draft" data-intent="draft">Save as draft</button>
+            <button
+                type="submit"
+                class="adm-btn adm-btn-primary"
+                id="btn-receive"
+                data-intent="receive"
+                formaction="{{ $formAction }}"
+            >Receive stock</button>
+            <button
+                type="submit"
+                class="adm-btn adm-btn-ghost"
+                id="btn-draft"
+                data-intent="draft"
+                formaction="{{ $draftAction }}"
+            >Save as draft</button>
         </div>
     </form>
 </div>
@@ -305,6 +317,12 @@
         if (submitting) {
             e.preventDefault();
             return;
+        }
+
+        // Prefer the clicked button's data-intent (Enter key uses the first submit button).
+        var submitter = e.submitter;
+        if (submitter && submitter.getAttribute('data-intent')) {
+            setIntent(submitter.getAttribute('data-intent'));
         }
 
         var total = purchaseTotal();

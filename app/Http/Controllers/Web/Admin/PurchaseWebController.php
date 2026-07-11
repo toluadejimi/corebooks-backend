@@ -62,14 +62,9 @@ class PurchaseWebController extends Controller
 
     public function edit(Request $request, Business $business, string $purchaseUuid): View|RedirectResponse
     {
-        $po = $this->findPurchase($business, $purchaseUuid);
-        if ($po === null) {
-            abort(404);
-        }
-        if ($po->status !== 'draft') {
-            return redirect()
-                ->route('admin.b.purchases.show', [$business, $po->uuid])
-                ->withErrors(['purchase' => 'Only draft purchases can be edited.']);
+        $po = $this->findDraft($business, $purchaseUuid);
+        if ($po instanceof RedirectResponse) {
+            return $po;
         }
 
         $po->load(['lines.product', 'supplier', 'location']);
@@ -79,28 +74,29 @@ class PurchaseWebController extends Controller
 
     public function store(Request $request, Business $business): RedirectResponse
     {
-        return $this->persist($request, $business, null);
+        $intent = $request->input('intent') === 'draft' ? 'draft' : 'receive';
+
+        return $this->persist($request, $business, null, $intent);
     }
 
-    public function update(Request $request, Business $business, string $purchaseUuid): RedirectResponse
+    public function saveDraft(Request $request, Business $business, string $purchaseUuid): RedirectResponse
     {
-        $po = $this->findPurchase($business, $purchaseUuid);
-        if ($po === null) {
-            abort(404);
-        }
-        if ($po->status !== 'draft') {
-            if ($po->status === 'received') {
-                return redirect()
-                    ->route('admin.b.purchases.show', [$business, $po->uuid])
-                    ->with('status', 'This purchase was already received into stock.');
-            }
-
-            return redirect()
-                ->route('admin.b.purchases.show', [$business, $po->uuid])
-                ->withErrors(['purchase' => 'Only draft purchases can be updated.']);
+        $po = $this->findDraft($business, $purchaseUuid);
+        if ($po instanceof RedirectResponse) {
+            return $po;
         }
 
-        return $this->persist($request, $business, $po);
+        return $this->persist($request, $business, $po, 'draft');
+    }
+
+    public function receiveDraft(Request $request, Business $business, string $purchaseUuid): RedirectResponse
+    {
+        $po = $this->findDraft($business, $purchaseUuid);
+        if ($po instanceof RedirectResponse) {
+            return $po;
+        }
+
+        return $this->persist($request, $business, $po, 'receive');
     }
 
     public function show(Request $request, Business $business, string $purchaseUuid): View|RedirectResponse
@@ -192,10 +188,8 @@ class PurchaseWebController extends Controller
         ]);
     }
 
-    private function persist(Request $request, Business $business, ?PurchaseOrder $existing): RedirectResponse
+    private function persist(Request $request, Business $business, ?PurchaseOrder $existing, string $intent): RedirectResponse
     {
-        $intent = $request->input('intent') === 'draft' ? 'draft' : 'receive';
-
         $linesInput = $request->input('lines', []);
         $linesFiltered = [];
         if (is_array($linesInput)) {
@@ -298,6 +292,28 @@ class PurchaseWebController extends Controller
         return redirect()
             ->route('admin.b.purchases.show', [$business, $po->uuid])
             ->with('status', 'Purchase received and stock updated.');
+    }
+
+    private function findDraft(Business $business, string $purchaseUuid): PurchaseOrder|RedirectResponse
+    {
+        $po = $this->findPurchase($business, $purchaseUuid);
+        if ($po === null) {
+            abort(404);
+        }
+
+        if ($po->status === 'received') {
+            return redirect()
+                ->route('admin.b.purchases.show', [$business, $po->uuid])
+                ->with('status', 'This purchase was already received into stock.');
+        }
+
+        if ($po->status !== 'draft') {
+            return redirect()
+                ->route('admin.b.purchases.show', [$business, $po->uuid])
+                ->withErrors(['purchase' => 'Only draft purchases can be edited.']);
+        }
+
+        return $po;
     }
 
     private function findPurchase(Business $business, string $purchaseUuid): ?PurchaseOrder
