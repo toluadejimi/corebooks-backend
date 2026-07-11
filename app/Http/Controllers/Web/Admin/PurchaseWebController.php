@@ -192,6 +192,14 @@ class PurchaseWebController extends Controller
             }
         }
 
+        $currencySymbol = match (strtoupper((string) ($business->currency ?? 'NGN'))) {
+            'NGN' => '₦',
+            'USD' => '$',
+            'GBP' => '£',
+            'EUR' => '€',
+            default => ($business->currency ?? '¤').' ',
+        };
+
         return view('admin.purchases.create', $this->workspace($request, $business) + [
             'products' => $products,
             'suppliers' => $suppliers,
@@ -200,6 +208,7 @@ class PurchaseWebController extends Controller
             'today' => now()->toDateString(),
             'purchase' => $purchase,
             'draftLines' => $draftLines,
+            'currencySymbol' => $currencySymbol,
         ]);
     }
 

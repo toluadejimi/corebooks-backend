@@ -154,6 +154,14 @@
         <div id="lines-wrap"></div>
         <button type="button" class="adm-btn adm-btn-ghost" id="add-line" style="margin-top:0.75rem;">+ Add line</button>
 
+        <div class="adm-card" style="margin-top:1rem;padding:1rem 1.15rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+            <div>
+                <span class="adm-page-desc" style="margin:0;display:block;">Total worth of goods</span>
+                <strong id="purchase-total" style="font-size:1.35rem;font-family:Outfit,sans-serif;">{{ $currencySymbol }}0.00</strong>
+            </div>
+            <span class="adm-page-desc" style="margin:0;font-size:0.8rem;">Qty × unit cost for all lines</span>
+        </div>
+
         <div class="adm-actions" style="margin-top:1.5rem;">
             <button
                 type="submit"
@@ -209,6 +217,8 @@
     var wrap = document.getElementById('lines-wrap');
     var tpl = document.getElementById('line-template');
     var addBtn = document.getElementById('add-line');
+    var totalEl = document.getElementById('purchase-total');
+    var currencySymbol = @json($currencySymbol);
     var oldLines = @json($initialLines);
 
     function applyNames(block, i) {
@@ -225,20 +235,48 @@
         });
     }
 
+    function purchaseTotal() {
+        var sum = 0;
+        wrap.querySelectorAll('.purchase-line').forEach(function (block) {
+            var q = parseFloat(block.querySelector('.qty-input').value) || 0;
+            var c = parseFloat(block.querySelector('.unit-cost-input').value) || 0;
+            sum += q * c;
+        });
+        return Math.round(sum * 100) / 100;
+    }
+
+    function formatMoney(amount) {
+        return currencySymbol + amount.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function updateTotal() {
+        if (totalEl) {
+            totalEl.textContent = formatMoney(purchaseTotal());
+        }
+    }
+
     function bindLine(root) {
         root.querySelector('.remove-line').addEventListener('click', function () {
             root.remove();
             renumberLines();
+            updateTotal();
         });
         var sel = root.querySelector('.product-select');
         var costIn = root.querySelector('.unit-cost-input');
+        var qtyIn = root.querySelector('.qty-input');
         sel.addEventListener('change', function () {
             var opt = sel.options[sel.selectedIndex];
             var c = opt.getAttribute('data-cost');
             if (c !== null && c !== '' && (costIn.value === '' || costIn.value === '0')) {
                 costIn.value = parseFloat(c).toFixed(2);
             }
+            updateTotal();
         });
+        qtyIn.addEventListener('input', updateTotal);
+        costIn.addEventListener('input', updateTotal);
     }
 
     function addLine(prefill) {
@@ -256,6 +294,7 @@
             if (prefill.unit_cost != null && prefill.unit_cost !== '') last.querySelector('.unit-cost-input').value = prefill.unit_cost;
             if (prefill.expiry_date) last.querySelector('.expiry-input').value = prefill.expiry_date;
         }
+        updateTotal();
     }
 
     addBtn.addEventListener('click', function () { addLine(null); });
@@ -287,16 +326,6 @@
         setIntent('receive');
     });
 
-    function purchaseTotal() {
-        var sum = 0;
-        wrap.querySelectorAll('.purchase-line').forEach(function (block) {
-            var q = parseFloat(block.querySelector('.qty-input').value) || 0;
-            var c = parseFloat(block.querySelector('.unit-cost-input').value) || 0;
-            sum += q * c;
-        });
-        return Math.round(sum * 100) / 100;
-    }
-
     function togglePayMode() {
         var split = paySplit.checked;
         paySingle.style.display = split ? 'none' : 'block';
@@ -312,6 +341,15 @@
 
     paySplit.addEventListener('change', togglePayMode);
     togglePayMode();
+    payCashAmount.addEventListener('input', function () {
+        var total = purchaseTotal();
+        var cash = parseFloat(payCashAmount.value) || 0;
+        var transfer = Math.round((total - cash) * 100) / 100;
+        var display = document.getElementById('pay_transfer_amount_display');
+        if (display) {
+            display.value = transfer > 0 ? formatMoney(transfer) : '';
+        }
+    });
 
     form.addEventListener('submit', function (e) {
         if (submitting) {
