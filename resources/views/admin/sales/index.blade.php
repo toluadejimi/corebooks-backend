@@ -74,10 +74,11 @@
         <div class="adm-field" style="margin:0;">
             <label class="adm-label" for="status">Status</label>
             <select class="adm-select" id="status" name="status">
-                <option value="all" @selected(($filters['status'] ?? 'all') === 'all')>All statuses</option>
+                <option value="all" @selected(($filters['status'] ?? 'all') === 'all')>All (excl. voided)</option>
                 <option value="completed" @selected(($filters['status'] ?? '') === 'completed')>Completed</option>
                 <option value="partially_returned" @selected(($filters['status'] ?? '') === 'partially_returned')>Partially returned</option>
                 <option value="returned" @selected(($filters['status'] ?? '') === 'returned')>Returned</option>
+                <option value="voided" @selected(($filters['status'] ?? '') === 'voided')>Voided</option>
             </select>
         </div>
         <div class="adm-field" style="margin:0;">

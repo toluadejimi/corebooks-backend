@@ -5,19 +5,23 @@ namespace App\Http\Controllers\Web\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Web\Admin\Concerns\ResolvesWorkspace;
 use App\Models\Business;
+use App\Models\Customer;
 use App\Models\Sale;
 use App\Models\User;
 use App\Services\ReportingService;
+use App\Services\SaleVoidService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
+use InvalidArgumentException;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Writer\CSV\Writer as CsvWriter;
 use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Throwable;
 
 class SalesWebController extends Controller
 {
@@ -27,6 +31,7 @@ class SalesWebController extends Controller
 
     public function __construct(
         protected ReportingService $reporting,
+        protected SaleVoidService $saleVoid,
     ) {}
 
     public function index(Request $request, Business $business): View
@@ -214,10 +219,96 @@ class SalesWebController extends Controller
             'user',
         ]);
 
+        $customers = Customer::query()
+            ->where('business_id', $business->id)
+            ->where(function ($q): void {
+                $q->where('is_walk_in', false)->orWhereNull('is_walk_in');
+            })
+            ->orderBy('name')
+            ->get(['id', 'uuid', 'name']);
+
+        $hasCreditPayment = $sale->payments->contains(fn ($p) => $p->method === 'credit');
+
         return view('admin.sales.show', $this->workspace($request, $business) + [
             'sale' => $sale,
+            'customers' => $customers,
+            'hasCreditPayment' => $hasCreditPayment,
             'currencySymbol' => $this->currencySymbol($business),
         ]);
+    }
+
+    public function updateCustomer(Request $request, Business $business, string $saleUuid): RedirectResponse
+    {
+        $sale = $this->findSaleOrAbort($business, $saleUuid);
+
+        $data = $request->validate([
+            'customer_uuid' => ['nullable', 'uuid'],
+        ]);
+
+        try {
+            $this->saleVoid->updateCustomer(
+                $business,
+                $sale,
+                $data['customer_uuid'] ?? null,
+            );
+        } catch (InvalidArgumentException $e) {
+            return redirect()
+                ->route('admin.b.sales.show', [$business, $sale->uuid])
+                ->withErrors(['sale' => $e->getMessage()]);
+        } catch (Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->route('admin.b.sales.show', [$business, $sale->uuid])
+                ->withErrors(['sale' => 'Could not update customer on this sale.']);
+        }
+
+        return redirect()
+            ->route('admin.b.sales.show', [$business, $sale->uuid])
+            ->with('status', 'Sale customer updated.');
+    }
+
+    public function void(Request $request, Business $business, string $saleUuid): RedirectResponse
+    {
+        $sale = $this->findSaleOrAbort($business, $saleUuid);
+
+        $request->validate([
+            'confirm' => ['accepted'],
+        ], [
+            'confirm.accepted' => 'Tick the confirmation box to void this sale.',
+        ]);
+
+        try {
+            $this->saleVoid->void($business, $sale);
+        } catch (InvalidArgumentException $e) {
+            return redirect()
+                ->route('admin.b.sales.show', [$business, $sale->uuid])
+                ->withErrors(['sale' => $e->getMessage()]);
+        } catch (Throwable $e) {
+            report($e);
+
+            return redirect()
+                ->route('admin.b.sales.show', [$business, $sale->uuid])
+                ->withErrors(['sale' => 'Could not void this sale. Try again or contact support.']);
+        }
+
+        return redirect()
+            ->route('admin.b.sales.show', [$business, $sale->uuid])
+            ->with('status', 'Sale voided. Stock was restored and the sale journal was removed.');
+    }
+
+    private function findSaleOrAbort(Business $business, string $saleUuid): Sale
+    {
+        $sale = Sale::query()
+            ->where('business_id', $business->id)
+            ->where('uuid', trim($saleUuid))
+            ->first();
+
+        if ($sale === null) {
+            abort(404);
+        }
+
+        return $sale;
     }
 
     /**
@@ -252,7 +343,7 @@ class SalesWebController extends Controller
         }
 
         $status = strtolower(trim((string) $request->query('status', 'all')));
-        if (! in_array($status, ['all', 'completed', 'partially_returned', 'returned'], true)) {
+        if (! in_array($status, ['all', 'completed', 'partially_returned', 'returned', 'voided'], true)) {
             $status = 'all';
         }
 
@@ -298,6 +389,9 @@ class SalesWebController extends Controller
 
         if (($filters['status'] ?? 'all') !== 'all') {
             $query->where('status', $filters['status']);
+        } else {
+            // Default list excludes voided sales so totals stay meaningful.
+            $query->where('status', '!=', 'voided');
         }
 
         if (($filters['payment_method'] ?? 'all') !== 'all') {

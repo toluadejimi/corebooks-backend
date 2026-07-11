@@ -240,6 +240,14 @@ Route::middleware('auth')->group(function (): void {
             Route::get('/sales/export/{format}', [SalesWebController::class, 'export'])
                 ->where('format', 'xlsx|csv')
                 ->name('sales.export');
+            Route::middleware('business.role:manager')->group(function (): void {
+                Route::put('/sales/{saleUuid}/customer', [SalesWebController::class, 'updateCustomer'])
+                    ->whereUuid('saleUuid')
+                    ->name('sales.customer');
+                Route::post('/sales/{saleUuid}/void', [SalesWebController::class, 'void'])
+                    ->whereUuid('saleUuid')
+                    ->name('sales.void');
+            });
             // Plain string UUID + manual resolve: avoids implicit/child-binding pitfalls and
             // gracefully redirects when a stale GL link or bookmark points at a missing sale.
             Route::get('/sales/{saleUuid}', [SalesWebController::class, 'show'])->name('sales.show');
