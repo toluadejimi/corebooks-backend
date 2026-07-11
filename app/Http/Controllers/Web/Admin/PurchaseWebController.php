@@ -15,6 +15,7 @@ use App\Services\PurchaseReceiveService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use InvalidArgumentException;
 use Throwable;
@@ -88,6 +89,12 @@ class PurchaseWebController extends Controller
             abort(404);
         }
         if ($po->status !== 'draft') {
+            if ($po->status === 'received') {
+                return redirect()
+                    ->route('admin.b.purchases.show', [$business, $po->uuid])
+                    ->with('status', 'This purchase was already received into stock.');
+            }
+
             return redirect()
                 ->route('admin.b.purchases.show', [$business, $po->uuid])
                 ->withErrors(['purchase' => 'Only draft purchases can be updated.']);
@@ -270,7 +277,18 @@ class PurchaseWebController extends Controller
                 $existing,
             );
         } catch (InvalidArgumentException $e) {
+            if ($existing !== null) {
+                $fresh = $existing->fresh();
+                if ($fresh !== null && $fresh->status === 'received') {
+                    return redirect()
+                        ->route('admin.b.purchases.show', [$business, $fresh->uuid])
+                        ->with('status', 'This purchase was already received into stock.');
+                }
+            }
+
             return redirect()->back()->withErrors(['purchase' => $e->getMessage()])->withInput();
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (Throwable $e) {
             report($e);
 

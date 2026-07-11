@@ -45,10 +45,10 @@ class PurchaseReceiveService
 
         return DB::transaction(function () use ($business, $locationUuid, $lines, $supplierUuid, $supplierName, $supplierPhone, $orderedAt, $existing) {
             if ($existing !== null) {
+                $existing = PurchaseOrder::query()->whereKey($existing->id)->lockForUpdate()->firstOrFail();
                 if ($existing->business_id !== $business->id || $existing->status !== 'draft') {
                     throw new InvalidArgumentException('Only draft purchases can be updated.');
                 }
-                $existing = PurchaseOrder::query()->whereKey($existing->id)->lockForUpdate()->firstOrFail();
             }
 
             $location = $business->locations()->where('uuid', $locationUuid)->lockForUpdate()->firstOrFail();
@@ -141,10 +141,10 @@ class PurchaseReceiveService
 
         return DB::transaction(function () use ($business, $locationUuid, $lines, $supplierUuid, $supplierName, $supplierPhone, $orderedAt, $payments, $existingDraft) {
             if ($existingDraft !== null) {
+                $existingDraft = PurchaseOrder::query()->whereKey($existingDraft->id)->lockForUpdate()->firstOrFail();
                 if ($existingDraft->business_id !== $business->id || $existingDraft->status !== 'draft') {
                     throw new InvalidArgumentException('Only draft purchases can be received.');
                 }
-                $existingDraft = PurchaseOrder::query()->whereKey($existingDraft->id)->lockForUpdate()->firstOrFail();
             }
 
             $location = $business->locations()->where('uuid', $locationUuid)->lockForUpdate()->firstOrFail();

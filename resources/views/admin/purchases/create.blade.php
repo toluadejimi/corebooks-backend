@@ -154,8 +154,9 @@
         <button type="button" class="adm-btn adm-btn-ghost" id="add-line" style="margin-top:0.75rem;">+ Add line</button>
 
         <div class="adm-actions" style="margin-top:1.5rem;">
-            <button type="submit" name="intent" value="receive" class="adm-btn adm-btn-primary" id="btn-receive">Receive stock</button>
-            <button type="submit" name="intent" value="draft" class="adm-btn adm-btn-ghost" id="btn-draft">Save as draft</button>
+            <input type="hidden" name="intent" id="intent-field" value="receive">
+            <button type="submit" class="adm-btn adm-btn-primary" id="btn-receive" data-intent="receive">Receive stock</button>
+            <button type="submit" class="adm-btn adm-btn-ghost" id="btn-draft" data-intent="draft">Save as draft</button>
         </div>
     </form>
 </div>
@@ -258,13 +259,20 @@
     var paySingle = document.getElementById('pay-single');
     var paySplitFields = document.getElementById('pay-split-fields');
     var payCashAmount = document.getElementById('pay_cash_amount');
+    var intentField = document.getElementById('intent-field');
     var submitIntent = 'receive';
+    var submitting = false;
+
+    function setIntent(intent) {
+        submitIntent = intent;
+        intentField.value = intent;
+    }
 
     document.getElementById('btn-draft').addEventListener('click', function () {
-        submitIntent = 'draft';
+        setIntent('draft');
     });
     document.getElementById('btn-receive').addEventListener('click', function () {
-        submitIntent = 'receive';
+        setIntent('receive');
     });
 
     function purchaseTotal() {
@@ -294,6 +302,11 @@
     togglePayMode();
 
     form.addEventListener('submit', function (e) {
+        if (submitting) {
+            e.preventDefault();
+            return;
+        }
+
         var total = purchaseTotal();
         if (total < 0.01) {
             e.preventDefault();
@@ -301,6 +314,9 @@
             return;
         }
         if (submitIntent === 'draft') {
+            submitting = true;
+            document.getElementById('btn-receive').disabled = true;
+            document.getElementById('btn-draft').disabled = true;
             return;
         }
         if (paySplit.checked) {
@@ -316,6 +332,9 @@
         } else {
             document.getElementById('pay_amount_single').value = total.toFixed(2);
         }
+        submitting = true;
+        document.getElementById('btn-receive').disabled = true;
+        document.getElementById('btn-draft').disabled = true;
     });
 })();
 </script>
