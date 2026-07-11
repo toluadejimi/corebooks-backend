@@ -192,6 +192,14 @@ class PurchaseWebController extends Controller
             }
         }
 
+        $productOptions = $products->map(static fn ($p): array => [
+            'uuid' => $p->uuid,
+            'name' => $p->name,
+            'sku' => $p->sku,
+            'barcode' => $p->barcode,
+            'cost' => (float) $p->cost_price,
+        ])->values()->all();
+
         $currencySymbol = match (strtoupper((string) ($business->currency ?? 'NGN'))) {
             'NGN' => '₦',
             'USD' => '$',
@@ -202,6 +210,7 @@ class PurchaseWebController extends Controller
 
         return view('admin.purchases.create', $this->workspace($request, $business) + [
             'products' => $products,
+            'productOptions' => $productOptions,
             'suppliers' => $suppliers,
             'locations' => $locations,
             'accounts' => $this->funds->listAccounts($business),

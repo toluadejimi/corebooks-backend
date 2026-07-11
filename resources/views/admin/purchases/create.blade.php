@@ -254,13 +254,7 @@
     var totalEl = document.getElementById('purchase-total');
     var currencySymbol = @json($currencySymbol);
     var oldLines = @json($initialLines);
-    var products = @json($products->map(fn ($p) => [
-        'uuid' => $p->uuid,
-        'name' => $p->name,
-        'sku' => $p->sku,
-        'barcode' => $p->barcode,
-        'cost' => (float) $p->cost_price,
-    ])->values());
+    var products = @json($productOptions);
 
     function applyNames(block, i) {
         block.querySelector('[data-name-product]').setAttribute('name', 'lines[' + i + '][product_uuid]');
