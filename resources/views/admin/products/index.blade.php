@@ -25,16 +25,18 @@
             <input class="adm-input" id="q" name="q" value="{{ $search }}" placeholder="e.g. Coke" autofocus>
         </div>
         <div class="adm-field" style="margin:0;">
-            <label class="adm-label" for="sort">Sort by</label>
-            <select class="adm-select" id="sort" name="sort">
-                <option value="name" @selected($sort === 'name')>Name</option>
-                <option value="category" @selected($sort === 'category')>Category</option>
+            <label class="adm-label" for="category_id">Category</label>
+            <select class="adm-select" id="category_id" name="category_id">
+                <option value="">All categories</option>
+                @foreach ($categories as $category)
+                    <option value="{{ $category->id }}" @selected($categoryId === $category->id)>{{ $category->name }}</option>
+                @endforeach
             </select>
         </div>
     </div>
     <div class="adm-actions" style="margin-top:0.75rem;">
         <button class="adm-btn adm-btn-primary" type="submit">Apply</button>
-        @if($search !== '' || $sort !== 'name')
+        @if($search !== '' || $categoryId)
             <a class="adm-btn adm-btn-ghost" href="{{ route('admin.b.products.index', $business) }}">Clear</a>
         @endif
     </div>
@@ -83,8 +85,8 @@
             @empty
                 <tr>
                     <td colspan="{{ $canManage ? 8 : 7 }}" style="color:var(--adm-muted);">
-                        @if($search !== '')
-                            No products match “{{ $search }}”.
+                        @if($search !== '' || $categoryId)
+                            No products match your filters.
                         @else
                             No products yet.
                         @endif

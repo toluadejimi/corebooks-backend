@@ -22,30 +22,34 @@ class ProductWebController extends Controller
     public function index(Request $request, Business $business): View
     {
         $search = trim((string) $request->query('q', ''));
-        $sort = $request->query('sort') === 'category' ? 'category' : 'name';
+        $categoryId = $request->integer('category_id') ?: null;
+
+        $categories = Category::query()
+            ->where('business_id', $business->id)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        if ($categoryId !== null && ! $categories->contains('id', $categoryId)) {
+            $categoryId = null;
+        }
 
         $query = Product::query()
-            ->where('products.business_id', $business->id)
+            ->where('business_id', $business->id)
             ->with(['category:id,name'])
-            ->withSum('batches', 'qty');
+            ->withSum('batches', 'qty')
+            ->orderBy('name');
 
         if ($search !== '') {
             $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $search).'%';
             $query->where(function ($q) use ($like): void {
-                $q->where('products.name', 'like', $like)
-                    ->orWhere('products.sku', 'like', $like)
-                    ->orWhere('products.barcode', 'like', $like);
+                $q->where('name', 'like', $like)
+                    ->orWhere('sku', 'like', $like)
+                    ->orWhere('barcode', 'like', $like);
             });
         }
 
-        if ($sort === 'category') {
-            $query->leftJoin('categories', 'categories.id', '=', 'products.category_id')
-                ->select('products.*')
-                ->orderByRaw('categories.name IS NULL')
-                ->orderBy('categories.name')
-                ->orderBy('products.name');
-        } else {
-            $query->orderBy('products.name');
+        if ($categoryId !== null) {
+            $query->where('category_id', $categoryId);
         }
 
         $products = $query->limit(500)->get();
@@ -62,7 +66,8 @@ class ProductWebController extends Controller
             'products' => $products,
             'currencySymbol' => $currencySymbol,
             'search' => $search,
-            'sort' => $sort,
+            'categories' => $categories,
+            'categoryId' => $categoryId,
         ]);
     }
 

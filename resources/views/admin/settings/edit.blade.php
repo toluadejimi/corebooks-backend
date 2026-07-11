@@ -231,4 +231,35 @@ document.addEventListener('DOMContentLoaded', function () {
         @endif
     </form>
 </div>
+
+@if($canManage)
+<div class="adm-card" style="max-width:920px;margin-top:1.25rem;border:1px solid var(--adm-danger,#dc2626);">
+    <h2 style="margin-top:0;font-family:Outfit,sans-serif;font-size:1.05rem;color:var(--adm-danger,#dc2626);">Danger zone</h2>
+    <p class="adm-page-desc" style="margin-top:-0.35rem;">
+        Clear on-hand quantity for every product batch across all branches. This cannot be undone from here — sales and purchase history stay intact, but stock counts go to zero.
+    </p>
+    <form
+        method="post"
+        action="{{ route('admin.b.settings.stock.zero', $business) }}"
+        onsubmit="return confirm('Set ALL stock to zero for every product and branch? This cannot be undone.');"
+    >
+        @csrf
+        <div class="adm-field" style="max-width:320px;">
+            <label class="adm-label" for="stock_zero_password">Your admin password</label>
+            <input
+                class="adm-input"
+                id="stock_zero_password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                required
+                placeholder="Confirm with your password"
+            >
+        </div>
+        <div class="adm-actions">
+            <button type="submit" class="adm-btn adm-btn-danger">Clear all stock to zero</button>
+        </div>
+    </form>
+</div>
+@endif
 @endsection

@@ -13,6 +13,7 @@ use App\Support\PosTerminalConfig;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -188,5 +189,31 @@ class BusinessSettingsWebController extends Controller
         return redirect()
             ->route('admin.b.settings.edit', $business)
             ->with('status', 'Branch removed.');
+    }
+
+    public function zeroAllStock(Request $request, Business $business): RedirectResponse
+    {
+        $request->validate([
+            'password' => ['required', 'current_password'],
+        ]);
+
+        $updated = 0;
+
+        DB::transaction(function () use ($business, &$updated): void {
+            $updated = ProductBatch::query()
+                ->where('business_id', $business->id)
+                ->where('qty', '!=', 0)
+                ->update([
+                    'qty' => 0,
+                    'version' => DB::raw('version + 1'),
+                    'updated_at' => now(),
+                ]);
+        });
+
+        return redirect()
+            ->route('admin.b.settings.edit', $business)
+            ->with('status', $updated > 0
+                ? "All stock cleared to zero ({$updated} batch".($updated === 1 ? '' : 'es').').'
+                : 'Stock was already zero — nothing to update.');
     }
 }

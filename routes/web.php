@@ -180,6 +180,7 @@ Route::middleware('auth')->group(function (): void {
                 Route::post('/settings/logo', [BusinessSettingsWebController::class, 'uploadLogo'])->name('settings.logo');
                 Route::post('/settings/locations', [BusinessSettingsWebController::class, 'storeLocation'])->name('settings.locations.store');
                 Route::delete('/settings/locations/{location}', [BusinessSettingsWebController::class, 'destroyLocation'])->name('settings.locations.destroy');
+                Route::post('/settings/stock/zero', [BusinessSettingsWebController::class, 'zeroAllStock'])->name('settings.stock.zero');
                 Route::post('/categories', [CategoryWebController::class, 'store'])->name('categories.store');
             });
 
