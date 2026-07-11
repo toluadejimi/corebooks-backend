@@ -186,12 +186,17 @@
         <div class="adm-grid cols-2" style="gap:0.75rem;">
             <div class="adm-field" style="grid-column:1/-1;margin:0;">
                 <label class="adm-label">Product</label>
-                <select class="adm-select product-select" data-name-product required>
-                    <option value="">— Select —</option>
-                    @foreach ($products as $p)
-                        <option value="{{ $p->uuid }}" data-cost="{{ $p->cost_price }}">{{ $p->name }}</option>
-                    @endforeach
-                </select>
+                <div class="product-picker" style="position:relative;">
+                    <input type="hidden" class="product-select" data-name-product value="">
+                    <input
+                        type="search"
+                        class="adm-input product-search"
+                        placeholder="Search name, SKU or barcode…"
+                        autocomplete="off"
+                        spellcheck="false"
+                    >
+                    <div class="product-picker-list" hidden style="position:absolute;z-index:30;left:0;right:0;top:calc(100% + 4px);max-height:220px;overflow:auto;background:var(--adm-card,#fff);border:1px solid var(--adm-border,#d1d5db);border-radius:10px;box-shadow:0 8px 24px rgba(15,23,42,0.12);"></div>
+                </div>
             </div>
             <div class="adm-field" style="margin:0;">
                 <label class="adm-label">Qty</label>
@@ -212,6 +217,35 @@
     </div>
 </template>
 
+<style>
+.product-picker-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    padding: 0.65rem 0.85rem;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+}
+.product-picker-item:hover,
+.product-picker-item.is-active {
+    background: var(--adm-accent-soft, #eef2ff);
+}
+.product-picker-item small {
+    display: block;
+    color: var(--adm-muted, #64748b);
+    font-size: 0.75rem;
+    margin-top: 0.15rem;
+}
+.product-picker-empty {
+    padding: 0.75rem 0.85rem;
+    color: var(--adm-muted, #64748b);
+    font-size: 0.85rem;
+}
+</style>
+
 <script>
 (function () {
     var wrap = document.getElementById('lines-wrap');
@@ -220,6 +254,13 @@
     var totalEl = document.getElementById('purchase-total');
     var currencySymbol = @json($currencySymbol);
     var oldLines = @json($initialLines);
+    var products = @json($products->map(fn ($p) => [
+        'uuid' => $p->uuid,
+        'name' => $p->name,
+        'sku' => $p->sku,
+        'barcode' => $p->barcode,
+        'cost' => (float) $p->cost_price,
+    ])->values());
 
     function applyNames(block, i) {
         block.querySelector('[data-name-product]').setAttribute('name', 'lines[' + i + '][product_uuid]');
@@ -258,25 +299,154 @@
         }
     }
 
+    function findProduct(uuid) {
+        for (var i = 0; i < products.length; i++) {
+            if (products[i].uuid === uuid) return products[i];
+        }
+        return null;
+    }
+
+    function productLabel(p) {
+        var bits = [];
+        if (p.sku) bits.push('SKU ' + p.sku);
+        if (p.barcode) bits.push(p.barcode);
+        return bits.length ? bits.join(' · ') : '';
+    }
+
+    function filterProducts(query) {
+        var q = String(query || '').trim().toLowerCase();
+        if (!q) return products.slice(0, 50);
+        var out = [];
+        for (var i = 0; i < products.length; i++) {
+            var p = products[i];
+            var hay = ((p.name || '') + ' ' + (p.sku || '') + ' ' + (p.barcode || '')).toLowerCase();
+            if (hay.indexOf(q) !== -1) {
+                out.push(p);
+                if (out.length >= 50) break;
+            }
+        }
+        return out;
+    }
+
+    function closePicker(picker) {
+        var list = picker.querySelector('.product-picker-list');
+        list.hidden = true;
+        list.innerHTML = '';
+    }
+
+    function selectProduct(root, product) {
+        var hidden = root.querySelector('.product-select');
+        var search = root.querySelector('.product-search');
+        var costIn = root.querySelector('.unit-cost-input');
+        hidden.value = product.uuid;
+        search.value = product.name;
+        if (costIn.value === '' || costIn.value === '0') {
+            costIn.value = Number(product.cost || 0).toFixed(2);
+        }
+        closePicker(root.querySelector('.product-picker'));
+        updateTotal();
+    }
+
+    function renderPicker(root, query, activeIndex) {
+        var picker = root.querySelector('.product-picker');
+        var list = picker.querySelector('.product-picker-list');
+        var matches = filterProducts(query);
+        list.innerHTML = '';
+        if (matches.length === 0) {
+            var empty = document.createElement('div');
+            empty.className = 'product-picker-empty';
+            empty.textContent = 'No products match “' + query + '”.';
+            list.appendChild(empty);
+            list.hidden = false;
+            return;
+        }
+        matches.forEach(function (p, idx) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'product-picker-item' + (idx === activeIndex ? ' is-active' : '');
+            btn.setAttribute('data-uuid', p.uuid);
+            btn.innerHTML = '<strong></strong>';
+            btn.querySelector('strong').textContent = p.name;
+            var meta = productLabel(p);
+            if (meta) {
+                var small = document.createElement('small');
+                small.textContent = meta;
+                btn.appendChild(small);
+            }
+            btn.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                selectProduct(root, p);
+            });
+            list.appendChild(btn);
+        });
+        list.hidden = false;
+    }
+
+    function bindProductPicker(root) {
+        var picker = root.querySelector('.product-picker');
+        var hidden = root.querySelector('.product-select');
+        var search = root.querySelector('.product-search');
+        var activeIndex = 0;
+
+        search.addEventListener('focus', function () {
+            activeIndex = 0;
+            renderPicker(root, search.value, activeIndex);
+        });
+        search.addEventListener('input', function () {
+            hidden.value = '';
+            activeIndex = 0;
+            renderPicker(root, search.value, activeIndex);
+        });
+        search.addEventListener('keydown', function (e) {
+            var list = picker.querySelector('.product-picker-list');
+            if (list.hidden) return;
+            var items = list.querySelectorAll('.product-picker-item');
+            if (!items.length) return;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                activeIndex = Math.min(activeIndex + 1, items.length - 1);
+                renderPicker(root, search.value, activeIndex);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activeIndex = Math.max(activeIndex - 1, 0);
+                renderPicker(root, search.value, activeIndex);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                var uuid = items[activeIndex].getAttribute('data-uuid');
+                var p = findProduct(uuid);
+                if (p) selectProduct(root, p);
+            } else if (e.key === 'Escape') {
+                closePicker(picker);
+            }
+        });
+        search.addEventListener('blur', function () {
+            setTimeout(function () {
+                closePicker(picker);
+                if (!hidden.value) {
+                    search.value = '';
+                } else {
+                    var p = findProduct(hidden.value);
+                    if (p) search.value = p.name;
+                }
+            }, 120);
+        });
+    }
+
+    function setProductValue(root, uuid) {
+        var p = findProduct(uuid);
+        if (!p) return;
+        selectProduct(root, p);
+    }
+
     function bindLine(root) {
         root.querySelector('.remove-line').addEventListener('click', function () {
             root.remove();
             renumberLines();
             updateTotal();
         });
-        var sel = root.querySelector('.product-select');
-        var costIn = root.querySelector('.unit-cost-input');
-        var qtyIn = root.querySelector('.qty-input');
-        sel.addEventListener('change', function () {
-            var opt = sel.options[sel.selectedIndex];
-            var c = opt.getAttribute('data-cost');
-            if (c !== null && c !== '' && (costIn.value === '' || costIn.value === '0')) {
-                costIn.value = parseFloat(c).toFixed(2);
-            }
-            updateTotal();
-        });
-        qtyIn.addEventListener('input', updateTotal);
-        costIn.addEventListener('input', updateTotal);
+        bindProductPicker(root);
+        root.querySelector('.qty-input').addEventListener('input', updateTotal);
+        root.querySelector('.unit-cost-input').addEventListener('input', updateTotal);
     }
 
     function addLine(prefill) {
@@ -289,7 +459,7 @@
         if (prefill && typeof prefill === 'object') {
             var last = wrap.querySelector('.purchase-line:last-of-type');
             if (!last) return;
-            if (prefill.product_uuid) last.querySelector('.product-select').value = prefill.product_uuid;
+            if (prefill.product_uuid) setProductValue(last, prefill.product_uuid);
             if (prefill.qty != null && prefill.qty !== '') last.querySelector('.qty-input').value = prefill.qty;
             if (prefill.unit_cost != null && prefill.unit_cost !== '') last.querySelector('.unit-cost-input').value = prefill.unit_cost;
             if (prefill.expiry_date) last.querySelector('.expiry-input').value = prefill.expiry_date;
@@ -357,10 +527,21 @@
             return;
         }
 
-        // Prefer the clicked button's data-intent (Enter key uses the first submit button).
         var submitter = e.submitter;
         if (submitter && submitter.getAttribute('data-intent')) {
             setIntent(submitter.getAttribute('data-intent'));
+        }
+
+        var missingProduct = false;
+        wrap.querySelectorAll('.purchase-line').forEach(function (block) {
+            if (!block.querySelector('.product-select').value) {
+                missingProduct = true;
+            }
+        });
+        if (missingProduct) {
+            e.preventDefault();
+            alert('Select a product on every line (search and pick from the list).');
+            return;
         }
 
         var total = purchaseTotal();

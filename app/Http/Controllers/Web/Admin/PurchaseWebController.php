@@ -171,7 +171,7 @@ class PurchaseWebController extends Controller
         $products = Product::query()
             ->where('business_id', $business->id)
             ->orderBy('name')
-            ->get(['uuid', 'name', 'cost_price']);
+            ->get(['uuid', 'name', 'sku', 'barcode', 'cost_price']);
 
         $suppliers = Supplier::query()
             ->where('business_id', $business->id)
