@@ -227,8 +227,11 @@ Route::middleware('auth')->group(function (): void {
                 ->middleware('business.role:manager')
                 ->whereUuid('purchaseUuid')
                 ->name('purchases.receive');
-            // Plain string UUID + manual resolve: supports /purchases/{purchase_order_uuid} and redirects
-            // when someone opens /purchases/{product_batch_uuid} (common bookmark mix-up).
+            // Compat for older draft forms that POSTed/PUT to /purchases/{uuid}.
+            Route::match(['post', 'put'], '/purchases/{purchaseUuid}', [PurchaseWebController::class, 'update'])
+                ->middleware('business.role:manager')
+                ->whereUuid('purchaseUuid')
+                ->name('purchases.update');
             Route::get('/purchases/{purchaseUuid}', [PurchaseWebController::class, 'show'])
                 ->whereUuid('purchaseUuid')
                 ->name('purchases.show');

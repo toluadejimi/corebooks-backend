@@ -99,6 +99,21 @@ class PurchaseWebController extends Controller
         return $this->persist($request, $business, $po, 'receive');
     }
 
+    /**
+     * Back-compat for draft forms that still POST/PUT to /purchases/{uuid}.
+     */
+    public function update(Request $request, Business $business, string $purchaseUuid): RedirectResponse
+    {
+        $intent = $request->input('intent') === 'draft' ? 'draft' : 'receive';
+
+        $po = $this->findDraft($business, $purchaseUuid);
+        if ($po instanceof RedirectResponse) {
+            return $po;
+        }
+
+        return $this->persist($request, $business, $po, $intent);
+    }
+
     public function show(Request $request, Business $business, string $purchaseUuid): View|RedirectResponse
     {
         $purchaseOrder = $this->findPurchase($business, $purchaseUuid);
