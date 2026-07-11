@@ -34,6 +34,7 @@ class PurchaseWebController extends Controller
             ->where('business_id', $business->id)
             ->with(['supplier', 'location'])
             ->withCount('lines')
+            ->orderByRaw("CASE WHEN status = 'draft' THEN 0 ELSE 1 END")
             ->orderByDesc('ordered_at')
             ->orderByDesc('id')
             ->limit(200)
@@ -55,105 +56,49 @@ class PurchaseWebController extends Controller
 
     public function create(Request $request, Business $business): View
     {
-        $products = Product::query()
-            ->where('business_id', $business->id)
-            ->orderBy('name')
-            ->get(['uuid', 'name', 'cost_price']);
+        return $this->formView($request, $business, null);
+    }
 
-        $suppliers = Supplier::query()
-            ->where('business_id', $business->id)
-            ->orderBy('name')
-            ->get();
+    public function edit(Request $request, Business $business, string $purchaseUuid): View|RedirectResponse
+    {
+        $po = $this->findPurchase($business, $purchaseUuid);
+        if ($po === null) {
+            abort(404);
+        }
+        if ($po->status !== 'draft') {
+            return redirect()
+                ->route('admin.b.purchases.show', [$business, $po->uuid])
+                ->withErrors(['purchase' => 'Only draft purchases can be edited.']);
+        }
 
-        $locations = $business->locations()->orderByDesc('is_default')->orderBy('name')->get();
+        $po->load(['lines.product', 'supplier', 'location']);
 
-        return view('admin.purchases.create', $this->workspace($request, $business) + [
-            'products' => $products,
-            'suppliers' => $suppliers,
-            'locations' => $locations,
-            'accounts' => $this->funds->listAccounts($business),
-            'today' => now()->toDateString(),
-        ]);
+        return $this->formView($request, $business, $po);
     }
 
     public function store(Request $request, Business $business): RedirectResponse
     {
-        $linesInput = $request->input('lines', []);
-        $linesFiltered = [];
-        if (is_array($linesInput)) {
-            foreach ($linesInput as $line) {
-                if (! is_array($line)) {
-                    continue;
-                }
-                $pu = trim((string) ($line['product_uuid'] ?? ''));
-                if ($pu === '') {
-                    continue;
-                }
-                $linesFiltered[] = [
-                    'product_uuid' => $pu,
-                    'qty' => $line['qty'] ?? null,
-                    'unit_cost' => $line['unit_cost'] ?? null,
-                    'expiry_date' => $line['expiry_date'] ?? null,
-                ];
-            }
+        return $this->persist($request, $business, null);
+    }
+
+    public function update(Request $request, Business $business, string $purchaseUuid): RedirectResponse
+    {
+        $po = $this->findPurchase($business, $purchaseUuid);
+        if ($po === null) {
+            abort(404);
+        }
+        if ($po->status !== 'draft') {
+            return redirect()
+                ->route('admin.b.purchases.show', [$business, $po->uuid])
+                ->withErrors(['purchase' => 'Only draft purchases can be updated.']);
         }
 
-        $request->merge(['lines' => $linesFiltered]);
-
-        $validated = $request->validate([
-            'location_uuid' => ['required', 'uuid', Rule::exists('locations', 'uuid')->where('business_id', $business->id)],
-            'supplier_uuid' => ['nullable', 'uuid', Rule::exists('suppliers', 'uuid')->where('business_id', $business->id)],
-            'supplier_name' => ['nullable', 'string', 'max:255'],
-            'supplier_phone' => ['nullable', 'string', 'max:32'],
-            'ordered_at' => ['nullable', 'date'],
-            'lines' => ['required', 'array', 'min:1'],
-            'lines.*.product_uuid' => ['required', 'uuid', Rule::exists('products', 'uuid')->where('business_id', $business->id)],
-            'lines.*.qty' => ['required', 'numeric', 'min:0.001'],
-            'lines.*.unit_cost' => ['required', 'numeric', 'min:0'],
-            'lines.*.expiry_date' => ['nullable', 'date'],
-            'payments' => ['required', 'array', 'min:1'],
-            'payments.*.method' => ['required', 'string', Rule::in(['cash', 'transfer', 'pos'])],
-            'payments.*.amount' => ['required', 'numeric', 'min:0.01'],
-            'payments.*.account_uuid' => ['required', 'string', 'max:128'],
-        ]);
-
-        if (empty($validated['supplier_uuid'])) {
-            $name = trim((string) ($validated['supplier_name'] ?? ''));
-            if ($name === '') {
-                return redirect()->back()->withErrors(['supplier_name' => 'Choose a supplier or enter a new supplier name.'])->withInput();
-            }
-        }
-
-        try {
-            $po = $this->purchaseReceive->receive(
-                $business,
-                $validated['location_uuid'],
-                $validated['lines'],
-                $validated['supplier_uuid'] ?? null,
-                $validated['supplier_name'] ?? null,
-                $validated['supplier_phone'] ?? null,
-                $validated['ordered_at'] ?? null,
-                $validated['payments'],
-            );
-        } catch (InvalidArgumentException $e) {
-            return redirect()->back()->withErrors(['purchase' => $e->getMessage()])->withInput();
-        } catch (Throwable $e) {
-            report($e);
-
-            return redirect()->back()->withErrors(['purchase' => 'Could not save this purchase. Check products and quantities, then try again.'])->withInput();
-        }
-
-        return redirect()
-            ->route('admin.b.purchases.show', [$business, $po->uuid])
-            ->with('status', 'Purchase received and stock updated.');
+        return $this->persist($request, $business, $po);
     }
 
     public function show(Request $request, Business $business, string $purchaseUuid): View|RedirectResponse
     {
-        $purchaseOrder = PurchaseOrder::query()
-            ->where('business_id', $business->id)
-            ->where('uuid', $purchaseUuid)
-            ->first();
+        $purchaseOrder = $this->findPurchase($business, $purchaseUuid);
 
         if ($purchaseOrder === null) {
             $batch = ProductBatch::query()
@@ -172,6 +117,13 @@ class PurchaseWebController extends Controller
             }
 
             abort(404);
+        }
+
+        if ($purchaseOrder->status === 'draft') {
+            $ws = $this->workspace($request, $business);
+            if ($ws['canManage'] ?? false) {
+                return redirect()->route('admin.b.purchases.edit', [$business, $purchaseOrder->uuid]);
+            }
         }
 
         $purchaseOrder->load([
@@ -194,5 +146,152 @@ class PurchaseWebController extends Controller
             'po' => $purchaseOrder,
             'currencySymbol' => $currencySymbol,
         ]);
+    }
+
+    private function formView(Request $request, Business $business, ?PurchaseOrder $purchase): View
+    {
+        $products = Product::query()
+            ->where('business_id', $business->id)
+            ->orderBy('name')
+            ->get(['uuid', 'name', 'cost_price']);
+
+        $suppliers = Supplier::query()
+            ->where('business_id', $business->id)
+            ->orderBy('name')
+            ->get();
+
+        $locations = $business->locations()->orderByDesc('is_default')->orderBy('name')->get();
+
+        $draftLines = [];
+        if ($purchase !== null) {
+            foreach ($purchase->lines as $line) {
+                $draftLines[] = [
+                    'product_uuid' => $line->product?->uuid,
+                    'qty' => (string) $line->qty,
+                    'unit_cost' => (string) $line->unit_cost,
+                    'expiry_date' => $line->expiry_date?->format('Y-m-d'),
+                ];
+            }
+        }
+
+        return view('admin.purchases.create', $this->workspace($request, $business) + [
+            'products' => $products,
+            'suppliers' => $suppliers,
+            'locations' => $locations,
+            'accounts' => $this->funds->listAccounts($business),
+            'today' => now()->toDateString(),
+            'purchase' => $purchase,
+            'draftLines' => $draftLines,
+        ]);
+    }
+
+    private function persist(Request $request, Business $business, ?PurchaseOrder $existing): RedirectResponse
+    {
+        $intent = $request->input('intent') === 'draft' ? 'draft' : 'receive';
+
+        $linesInput = $request->input('lines', []);
+        $linesFiltered = [];
+        if (is_array($linesInput)) {
+            foreach ($linesInput as $line) {
+                if (! is_array($line)) {
+                    continue;
+                }
+                $pu = trim((string) ($line['product_uuid'] ?? ''));
+                if ($pu === '') {
+                    continue;
+                }
+                $linesFiltered[] = [
+                    'product_uuid' => $pu,
+                    'qty' => $line['qty'] ?? null,
+                    'unit_cost' => $line['unit_cost'] ?? null,
+                    'expiry_date' => $line['expiry_date'] ?? null,
+                ];
+            }
+        }
+
+        $request->merge(['lines' => $linesFiltered]);
+
+        $rules = [
+            'location_uuid' => ['required', 'uuid', Rule::exists('locations', 'uuid')->where('business_id', $business->id)],
+            'supplier_uuid' => ['nullable', 'uuid', Rule::exists('suppliers', 'uuid')->where('business_id', $business->id)],
+            'supplier_name' => ['nullable', 'string', 'max:255'],
+            'supplier_phone' => ['nullable', 'string', 'max:32'],
+            'ordered_at' => ['nullable', 'date'],
+            'lines' => ['required', 'array', 'min:1'],
+            'lines.*.product_uuid' => ['required', 'uuid', Rule::exists('products', 'uuid')->where('business_id', $business->id)],
+            'lines.*.qty' => ['required', 'numeric', 'min:0.001'],
+            'lines.*.unit_cost' => ['required', 'numeric', 'min:0'],
+            'lines.*.expiry_date' => ['nullable', 'date'],
+        ];
+
+        if ($intent === 'receive') {
+            $rules['payments'] = ['required', 'array', 'min:1'];
+            $rules['payments.*.method'] = ['required', 'string', Rule::in(['cash', 'transfer', 'pos'])];
+            $rules['payments.*.amount'] = ['required', 'numeric', 'min:0.01'];
+            $rules['payments.*.account_uuid'] = ['required', 'string', 'max:128'];
+        }
+
+        $validated = $request->validate($rules);
+
+        if (empty($validated['supplier_uuid'])) {
+            $name = trim((string) ($validated['supplier_name'] ?? ''));
+            if ($name === '') {
+                return redirect()->back()->withErrors(['supplier_name' => 'Choose a supplier or enter a new supplier name.'])->withInput();
+            }
+        }
+
+        try {
+            if ($intent === 'draft') {
+                $po = $this->purchaseReceive->saveDraft(
+                    $business,
+                    $validated['location_uuid'],
+                    $validated['lines'],
+                    $validated['supplier_uuid'] ?? null,
+                    $validated['supplier_name'] ?? null,
+                    $validated['supplier_phone'] ?? null,
+                    $validated['ordered_at'] ?? null,
+                    $existing,
+                );
+
+                return redirect()
+                    ->route('admin.b.purchases.edit', [$business, $po->uuid])
+                    ->with('status', 'Draft purchase saved. You can continue editing or receive stock when ready.');
+            }
+
+            $po = $this->purchaseReceive->receive(
+                $business,
+                $validated['location_uuid'],
+                $validated['lines'],
+                $validated['supplier_uuid'] ?? null,
+                $validated['supplier_name'] ?? null,
+                $validated['supplier_phone'] ?? null,
+                $validated['ordered_at'] ?? null,
+                $validated['payments'],
+                $existing,
+            );
+        } catch (InvalidArgumentException $e) {
+            return redirect()->back()->withErrors(['purchase' => $e->getMessage()])->withInput();
+        } catch (Throwable $e) {
+            report($e);
+
+            return redirect()->back()->withErrors(['purchase' => 'Could not save this purchase. Check products and quantities, then try again.'])->withInput();
+        }
+
+        return redirect()
+            ->route('admin.b.purchases.show', [$business, $po->uuid])
+            ->with('status', 'Purchase received and stock updated.');
+    }
+
+    private function findPurchase(Business $business, string $purchaseUuid): ?PurchaseOrder
+    {
+        $purchaseUuid = trim($purchaseUuid);
+        if ($purchaseUuid === '') {
+            return null;
+        }
+
+        return PurchaseOrder::query()
+            ->where('business_id', $business->id)
+            ->where('uuid', $purchaseUuid)
+            ->first();
     }
 }

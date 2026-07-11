@@ -4,7 +4,7 @@
 
 @section('content')
 <h1 class="adm-page-title">Purchases</h1>
-<p class="adm-page-desc">Goods received into stock (purchase orders). Each receipt creates batches and updates catalog cost per line.</p>
+<p class="adm-page-desc">Goods received into stock (purchase orders). Drafts appear first — continue them anytime before receiving stock.</p>
 
 @if($canManage)
     <div class="adm-actions" style="margin-bottom:1rem;">
@@ -35,7 +35,13 @@
                     <td>{{ $o->lines_count }}</td>
                     <td><strong>{{ $currencySymbol }}{{ number_format((float) $o->total, 2) }}</strong></td>
                     <td><span class="adm-role-pill" style="font-size:0.65rem;">{{ $o->status }}</span></td>
-                    <td><a href="{{ route('admin.b.purchases.show', [$business, $o->uuid]) }}" class="adm-btn adm-btn-ghost" style="padding:0.35rem 0.65rem;font-size:0.8rem;">View</a></td>
+                    <td class="adm-actions">
+                        @if($o->status === 'draft' && $canManage)
+                            <a href="{{ route('admin.b.purchases.edit', [$business, $o->uuid]) }}" class="adm-btn adm-btn-primary" style="padding:0.35rem 0.65rem;font-size:0.8rem;">Continue</a>
+                        @else
+                            <a href="{{ route('admin.b.purchases.show', [$business, $o->uuid]) }}" class="adm-btn adm-btn-ghost" style="padding:0.35rem 0.65rem;font-size:0.8rem;">View</a>
+                        @endif
+                    </td>
                 </tr>
             @empty
                 <tr><td colspan="7" style="color:var(--adm-muted);">No purchases yet.@if($canManage) Use “Record purchase” to receive stock from a supplier.@endif</td></tr>

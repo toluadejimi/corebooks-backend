@@ -1,29 +1,46 @@
 @extends('layouts.admin-workspace')
 
-@section('title', 'Record purchase — '.$business->name)
+@section('title', ($purchase ? 'Edit draft purchase' : 'Record purchase').' — '.$business->name)
 
 @section('content')
 @php
     $defaultLoc = $locations->firstWhere('is_default') ?? $locations->first();
+    $isDraft = $purchase !== null;
+    $formAction = $isDraft
+        ? route('admin.b.purchases.update', [$business, $purchase->uuid])
+        : route('admin.b.purchases.store', $business);
+    $prefillLocation = old('location_uuid', $purchase?->location?->uuid ?? $defaultLoc?->uuid);
+    $prefillSupplier = old('supplier_uuid', $purchase?->supplier?->uuid);
+    $prefillOrderedAt = old('ordered_at', $purchase?->ordered_at?->toDateString() ?? $today);
+    $initialLines = old('lines', $draftLines ?? []);
 @endphp
 <p style="margin:0 0 1rem;"><a href="{{ route('admin.b.purchases.index', $business) }}" class="adm-btn adm-btn-ghost" style="padding:0.35rem 0.65rem;font-size:0.85rem;">← Purchases</a></p>
 
-<h1 class="adm-page-title">Record purchase</h1>
-<p class="adm-page-desc">Receive stock from a supplier. Creates a purchase record, new batches at the branch, stock movements, and updates each product’s catalog cost to the unit cost on that line.</p>
+<h1 class="adm-page-title">{{ $isDraft ? 'Continue draft purchase' : 'Record purchase' }}</h1>
+<p class="adm-page-desc">
+    @if($isDraft)
+        This draft has not updated stock yet. Save again anytime, or receive stock when payment and lines are ready.
+    @else
+        Receive stock from a supplier. Creates a purchase record, new batches at the branch, stock movements, and updates each product’s catalog cost to the unit cost on that line. Use <strong>Save as draft</strong> to come back later without touching stock or funds.
+    @endif
+</p>
 
 @if($errors->has('purchase'))
     <div class="adm-flash err" style="margin-bottom:1rem;">{{ $errors->first('purchase') }}</div>
 @endif
 
 <div class="adm-card" style="max-width:920px;">
-    <form method="post" action="{{ route('admin.b.purchases.store', $business) }}" id="purchase-form">
+    <form method="post" action="{{ $formAction }}" id="purchase-form">
         @csrf
+        @if($isDraft)
+            @method('PUT')
+        @endif
         <div class="adm-grid cols-2">
             <div class="adm-field">
                 <label class="adm-label" for="location_uuid">Receive at branch</label>
                 <select class="adm-select" id="location_uuid" name="location_uuid" required>
                     @foreach ($locations as $loc)
-                        <option value="{{ $loc->uuid }}" @selected(old('location_uuid', $defaultLoc?->uuid) === $loc->uuid)>{{ $loc->name }}</option>
+                        <option value="{{ $loc->uuid }}" @selected($prefillLocation === $loc->uuid)>{{ $loc->name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -32,7 +49,7 @@
                 <select class="adm-select" id="supplier_uuid" name="supplier_uuid">
                     <option value="">— New supplier (fill name below) —</option>
                     @foreach ($suppliers as $s)
-                        <option value="{{ $s->uuid }}" @selected(old('supplier_uuid') === $s->uuid)>{{ $s->name }}@if($s->phone) · {{ $s->phone }}@endif</option>
+                        <option value="{{ $s->uuid }}" @selected($prefillSupplier === $s->uuid)>{{ $s->name }}@if($s->phone) · {{ $s->phone }}@endif</option>
                     @endforeach
                 </select>
                 @if($canManage ?? false)
@@ -53,13 +70,13 @@
         <div class="adm-grid cols-2">
             <div class="adm-field">
                 <label class="adm-label" for="ordered_at">Purchase date</label>
-                <input class="adm-input" id="ordered_at" name="ordered_at" type="date" value="{{ old('ordered_at', $today) }}">
+                <input class="adm-input" id="ordered_at" name="ordered_at" type="date" value="{{ $prefillOrderedAt }}">
                 <p style="margin:0.35rem 0 0;font-size:0.8rem;color:var(--adm-muted);">Backdate if you're recording an older receipt.</p>
             </div>
         </div>
 
         <h2 style="font-family:Outfit,sans-serif;font-size:1.05rem;margin:1.25rem 0 0.75rem;">Payment</h2>
-        <p class="adm-page-desc" style="margin-top:-0.25rem;">Funds are deducted from your cash or bank accounts when stock is received (same as expenses).</p>
+        <p class="adm-page-desc" style="margin-top:-0.25rem;">Required when you receive stock. Skipped for drafts — funds are deducted only on receive.</p>
         <div class="adm-card" style="padding:1rem;margin-bottom:1rem;background:var(--adm-accent-soft);border-color:#c7d2fe;">
             <div class="adm-field" style="margin:0 0 0.75rem;">
                 <label class="adm-label">
@@ -79,7 +96,7 @@
                     </div>
                     <div class="adm-field" style="margin:0;">
                         <label class="adm-label" for="pay_account_single">Pay from account</label>
-                        <select class="adm-select" id="pay_account_single" name="payments[0][account_uuid]" required>
+                        <select class="adm-select" id="pay_account_single" name="payments[0][account_uuid]">
                             @foreach ($accounts as $acc)
                                 @if ($acc['is_active'] ?? true)
                                     <option value="{{ $acc['uuid'] }}" @selected(old('payments.0.account_uuid') === $acc['uuid'])>
@@ -137,7 +154,8 @@
         <button type="button" class="adm-btn adm-btn-ghost" id="add-line" style="margin-top:0.75rem;">+ Add line</button>
 
         <div class="adm-actions" style="margin-top:1.5rem;">
-            <button type="submit" class="adm-btn adm-btn-primary">Receive stock</button>
+            <button type="submit" name="intent" value="receive" class="adm-btn adm-btn-primary" id="btn-receive">Receive stock</button>
+            <button type="submit" name="intent" value="draft" class="adm-btn adm-btn-ghost" id="btn-draft">Save as draft</button>
         </div>
     </form>
 </div>
@@ -178,7 +196,7 @@
     var wrap = document.getElementById('lines-wrap');
     var tpl = document.getElementById('line-template');
     var addBtn = document.getElementById('add-line');
-    var oldLines = @json(old('lines', []));
+    var oldLines = @json($initialLines);
 
     function applyNames(block, i) {
         block.querySelector('[data-name-product]').setAttribute('name', 'lines[' + i + '][product_uuid]');
@@ -240,6 +258,14 @@
     var paySingle = document.getElementById('pay-single');
     var paySplitFields = document.getElementById('pay-split-fields');
     var payCashAmount = document.getElementById('pay_cash_amount');
+    var submitIntent = 'receive';
+
+    document.getElementById('btn-draft').addEventListener('click', function () {
+        submitIntent = 'draft';
+    });
+    document.getElementById('btn-receive').addEventListener('click', function () {
+        submitIntent = 'receive';
+    });
 
     function purchaseTotal() {
         var sum = 0;
@@ -272,6 +298,9 @@
         if (total < 0.01) {
             e.preventDefault();
             alert('Add at least one line with quantity and unit cost.');
+            return;
+        }
+        if (submitIntent === 'draft') {
             return;
         }
         if (paySplit.checked) {
