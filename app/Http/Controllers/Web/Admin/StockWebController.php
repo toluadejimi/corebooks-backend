@@ -44,9 +44,11 @@ class StockWebController extends Controller
         }
 
         $stockLabel = match ($data['stockFilter']) {
+            'on_hand' => 'On hand only',
             'low' => 'Low stock (under '.self::LOW_STOCK_THRESHOLD.')',
-            'out' => 'Out of stock',
-            default => 'All levels',
+            'out' => 'Out of stock / empty batches',
+            'all' => 'All batches (incl. empty)',
+            default => 'On hand only',
         };
 
         return view('admin.stock.print', [
@@ -106,9 +108,10 @@ class StockWebController extends Controller
     {
         $search = trim((string) $request->query('q', ''));
         $locationUuid = trim((string) $request->query('location_uuid', ''));
-        $stockFilter = strtolower(trim((string) $request->query('stock', 'all')));
-        if (! in_array($stockFilter, ['all', 'low', 'out'], true)) {
-            $stockFilter = 'all';
+        // Default: hide empty batches so sold-out leftovers don't look like product duplicates.
+        $stockFilter = strtolower(trim((string) $request->query('stock', 'on_hand')));
+        if (! in_array($stockFilter, ['on_hand', 'all', 'low', 'out'], true)) {
+            $stockFilter = 'on_hand';
         }
 
         $categoryId = $request->integer('category_id') ?: null;
@@ -158,7 +161,9 @@ class StockWebController extends Controller
             $query->where('products.category_id', $categoryId);
         }
 
-        if ($stockFilter === 'low') {
+        if ($stockFilter === 'on_hand') {
+            $query->where('product_batches.qty', '>', 0);
+        } elseif ($stockFilter === 'low') {
             $query->where('product_batches.qty', '>', 0)
                 ->where('product_batches.qty', '<', self::LOW_STOCK_THRESHOLD);
         } elseif ($stockFilter === 'out') {
@@ -177,7 +182,7 @@ class StockWebController extends Controller
                 'q' => $search !== '' ? $search : null,
                 'location_uuid' => $locationUuid !== '' ? $locationUuid : null,
                 'category_id' => $categoryId,
-                'stock' => $stockFilter !== 'all' ? $stockFilter : null,
+                'stock' => $stockFilter !== 'on_hand' ? $stockFilter : null,
             ], static fn ($v) => $v !== null && $v !== ''),
         ];
     }

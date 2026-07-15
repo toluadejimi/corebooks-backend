@@ -4,7 +4,11 @@
 
 @section('content')
 <h1 class="adm-page-title">Stock &amp; batches</h1>
-<p class="adm-page-desc">Each row is a stock batch (product × location). Managers can set on-hand quantity. Products with total stock under {{ $lowStockThreshold }} are flagged below.</p>
+<p class="adm-page-desc">
+    Each row is a <strong>stock batch</strong>, not a product — a new batch is created when you receive a purchase (and sometimes when adding stock).
+    Empty leftover batches can make the same product appear many times at 0. Default view shows on-hand only.
+    Products with total stock under {{ $lowStockThreshold }} are flagged below.
+</p>
 
 @if($lowStockProducts->isNotEmpty())
     <div class="adm-card" style="border:1px solid #d97706;background:rgba(217,119,6,0.1);padding:0.9rem 1rem;margin-bottom:1rem;border-radius:10px;">
@@ -59,15 +63,16 @@
         <div class="adm-field" style="margin:0;">
             <label class="adm-label" for="stock">Stock level</label>
             <select class="adm-select" id="stock" name="stock">
-                <option value="all" @selected($stockFilter === 'all')>All levels</option>
+                <option value="on_hand" @selected($stockFilter === 'on_hand')>On hand (hide empty)</option>
                 <option value="low" @selected($stockFilter === 'low')>Low (under {{ $lowStockThreshold }})</option>
-                <option value="out" @selected($stockFilter === 'out')>Out of stock</option>
+                <option value="out" @selected($stockFilter === 'out')>Empty / out of stock</option>
+                <option value="all" @selected($stockFilter === 'all')>All batches</option>
             </select>
         </div>
     </div>
     <div class="adm-actions" style="margin-top:0.75rem;flex-wrap:wrap;">
         <button class="adm-btn adm-btn-primary" type="submit">Apply</button>
-        @if($search !== '' || $locationUuid !== '' || $categoryId || $stockFilter !== 'all')
+        @if($search !== '' || $locationUuid !== '' || $categoryId || $stockFilter !== 'on_hand')
             <a class="adm-btn adm-btn-ghost" href="{{ route('admin.b.stock.index', $business) }}">Clear</a>
         @endif
         <span style="flex:1 1 auto;"></span>
@@ -135,10 +140,13 @@
             @empty
                 <tr>
                     <td colspan="{{ $canManage ? 6 : 5 }}" style="color:var(--adm-muted);">
-                        @if($search !== '' || $locationUuid !== '' || $categoryId || $stockFilter !== 'all')
+                        @if($search !== '' || $locationUuid !== '' || $categoryId || $stockFilter !== 'on_hand')
                             No batches match your filters.
+                            @if($stockFilter === 'on_hand')
+                                Try <a href="{{ route('admin.b.stock.index', array_merge(['business' => $business], array_filter(['q' => $search ?: null, 'location_uuid' => $locationUuid ?: null, 'category_id' => $categoryId, 'stock' => 'all']))) }}">All batches</a> to see empty leftovers.
+                            @endif
                         @else
-                            No batches. Add products with initial stock.
+                            No on-hand stock right now. Receive a purchase or choose <em>All batches</em> / <em>Empty</em> to see zero-qty rows.
                         @endif
                     </td>
                 </tr>
