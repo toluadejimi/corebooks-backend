@@ -5,10 +5,28 @@
 @section('content')
 <h1 class="adm-page-title">Stock &amp; batches</h1>
 <p class="adm-page-desc">
-    Each row is a <strong>stock batch</strong>, not a product — a new batch is created when you receive a purchase (and sometimes when adding stock).
-    Empty leftover batches can make the same product appear many times at 0. Default view shows on-hand only.
+    Each row is a <strong>stock batch</strong>, not a product — receiving purchases creates new batches. Sold-out leftovers used to repeat the same name at 0;
+    Empty / All views now show at most one empty row per product and branch. Default view is on-hand only.
     Products with total stock under {{ $lowStockThreshold }} are flagged below.
 </p>
+
+@if($canManage && ($emptyDuplicateCount ?? 0) > 0)
+    <div class="adm-card" style="border:1px solid #b91c1c;background:rgba(220,38,38,0.07);padding:0.9rem 1rem;margin-bottom:1rem;border-radius:10px;">
+        <strong style="display:block;margin-bottom:0.35rem;color:#b91c1c;">
+            {{ $emptyDuplicateCount }} duplicate empty batch{{ $emptyDuplicateCount === 1 ? '' : 'es' }} in the database
+        </strong>
+        <p style="margin:0 0 0.65rem;font-size:0.9rem;color:#7f1d1d;">
+            The list already hides extras. Click below to delete them permanently (one empty row is kept per product × branch for adjustments).
+        </p>
+        <form method="post" action="{{ route('admin.b.stock.cleanup-empty', $business) }}" onsubmit="return confirm('Delete duplicate empty batches? One zero-qty row will remain per product and branch.');">
+            @csrf
+            @foreach ($filterQuery as $key => $val)
+                <input type="hidden" name="{{ $key }}" value="{{ $val }}">
+            @endforeach
+            <button type="submit" class="adm-btn adm-btn-primary" style="background:#b91c1c;border-color:#b91c1c;">Remove duplicate empty batches</button>
+        </form>
+    </div>
+@endif
 
 @if($lowStockProducts->isNotEmpty())
     <div class="adm-card" style="border:1px solid #d97706;background:rgba(217,119,6,0.1);padding:0.9rem 1rem;margin-bottom:1rem;border-radius:10px;">

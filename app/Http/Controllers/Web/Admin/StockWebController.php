@@ -11,6 +11,7 @@ use App\Models\ProductBatch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class StockWebController extends Controller
@@ -26,6 +27,7 @@ class StockWebController extends Controller
         return view('admin.stock.index', $this->workspace($request, $business) + $data + [
             'lowStockProducts' => $this->lowStockProducts($business, self::LOW_STOCK_THRESHOLD),
             'lowStockThreshold' => self::LOW_STOCK_THRESHOLD,
+            'emptyDuplicateCount' => $this->emptyDuplicateBatchCount($business),
         ]);
     }
 
@@ -90,6 +92,35 @@ class StockWebController extends Controller
         return redirect()
             ->route('admin.b.stock.index', array_merge(['business' => $business], $query))
             ->with('status', 'Stock quantity updated.');
+    }
+
+    /**
+     * Keep one empty batch per product × location; delete the rest.
+     * Sale/purchase lines reference batches with nullOnDelete, so this is safe.
+     */
+    public function cleanupEmptyDuplicates(Request $request, Business $business): RedirectResponse
+    {
+        $keptIds = $this->keptEmptyBatchIdsQuery($business)->pluck('id');
+
+        $deleted = ProductBatch::query()
+            ->where('business_id', $business->id)
+            ->where('qty', '<=', 0)
+            ->when($keptIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $keptIds))
+            ->delete();
+
+        return redirect()
+            ->route('admin.b.stock.index', array_merge(
+                ['business' => $business],
+                array_filter([
+                    'q' => $request->input('q'),
+                    'location_uuid' => $request->input('location_uuid'),
+                    'category_id' => $request->input('category_id'),
+                    'stock' => $request->input('stock', 'out'),
+                ], static fn ($v) => $v !== null && $v !== '')
+            ))
+            ->with('status', $deleted > 0
+                ? "Removed {$deleted} duplicate empty batch".($deleted === 1 ? '' : 'es').'. One empty row kept per product and branch.'
+                : 'No duplicate empty batches to remove.');
     }
 
     /**
@@ -167,7 +198,15 @@ class StockWebController extends Controller
             $query->where('product_batches.qty', '>', 0)
                 ->where('product_batches.qty', '<', self::LOW_STOCK_THRESHOLD);
         } elseif ($stockFilter === 'out') {
-            $query->where('product_batches.qty', '<=', 0);
+            // One empty row per product × location (hide leftover sold-out duplicates).
+            $query->where('product_batches.qty', '<=', 0)
+                ->whereIn('product_batches.id', $this->keptEmptyBatchIdsQuery($business));
+        } else {
+            // All: every on-hand batch, plus at most one empty row per product × location.
+            $query->where(function ($q) use ($business): void {
+                $q->where('product_batches.qty', '>', 0)
+                    ->orWhereIn('product_batches.id', $this->keptEmptyBatchIdsQuery($business));
+            });
         }
 
         return [
@@ -205,5 +244,31 @@ class StockWebController extends Controller
             ->orderBy('products.name')
             ->limit(50)
             ->get();
+    }
+
+    /**
+     * Newest empty batch id per product × location (for display / cleanup keep-list).
+     *
+     * @return \Illuminate\Database\Query\Builder
+     */
+    private function keptEmptyBatchIdsQuery(Business $business)
+    {
+        return DB::table('product_batches')
+            ->selectRaw('MAX(id) as id')
+            ->where('business_id', $business->id)
+            ->where('qty', '<=', 0)
+            ->groupBy('product_id', 'location_id');
+    }
+
+    private function emptyDuplicateBatchCount(Business $business): int
+    {
+        $emptyTotal = ProductBatch::query()
+            ->where('business_id', $business->id)
+            ->where('qty', '<=', 0)
+            ->count();
+
+        $kept = (int) $this->keptEmptyBatchIdsQuery($business)->get()->count();
+
+        return max(0, $emptyTotal - $kept);
     }
 }

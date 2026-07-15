@@ -208,6 +208,9 @@ Route::middleware('auth')->group(function (): void {
             Route::post('/stock/batches/{batch}/quantity', [StockWebController::class, 'updateQuantity'])
                 ->middleware('business.role:manager')
                 ->name('stock.batch-qty');
+            Route::post('/stock/cleanup-empty', [StockWebController::class, 'cleanupEmptyDuplicates'])
+                ->middleware('business.role:manager')
+                ->name('stock.cleanup-empty');
 
             Route::get('/purchases', [PurchaseWebController::class, 'index'])->name('purchases.index');
             Route::get('/purchases/create', [PurchaseWebController::class, 'create'])
