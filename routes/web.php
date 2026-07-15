@@ -204,6 +204,7 @@ Route::middleware('auth')->group(function (): void {
             });
 
             Route::get('/stock', [StockWebController::class, 'index'])->name('stock.index');
+            Route::get('/stock/print', [StockWebController::class, 'print'])->name('stock.print');
             Route::post('/stock/batches/{batch}/quantity', [StockWebController::class, 'updateQuantity'])
                 ->middleware('business.role:manager')
                 ->name('stock.batch-qty');
